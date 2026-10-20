@@ -1,4 +1,0 @@
-{
-  "instructions": "استبدل النصوص المطابقة في questions_database.json ثم شغّل python generate_project.py",
-  "edits": {}
-}
