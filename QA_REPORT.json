@@ -1,0 +1,19 @@
+{
+  "total_questions": 35625,
+  "basic_questions": 34875,
+  "reserve_questions": 750,
+  "unique_locations": 35625,
+  "unique_question_texts": 29317,
+  "models": 750,
+  "ranges": 30,
+  "models_per_range": 25,
+  "max_exact_question_reuse": 3,
+  "excluded_surahs": [
+    1
+  ],
+  "start_filters": "Never starts at ayah 1 or 2 of any surah, including Juz Amma.",
+  "similarity_filter": "No high lexical similarity within a model; sequence ratio and six-word fingerprints are rejected.",
+  "minimum_page_gap_within_model": 3,
+  "distribution": "For each cumulative range [top_juz..30], the top Juz has 4 questions and every lower Juz has 3 basic questions.",
+  "source": "Tanzil Quran text via Quran JSON (uthmani), Hafs scripts; standard page numbers from Quran.com verse metadata."
+}
