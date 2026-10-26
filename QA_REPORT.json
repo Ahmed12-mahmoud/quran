@@ -1,0 +1,29 @@
+{
+  "total_questions": 67950,
+  "basic_questions": 63225,
+  "reserve_questions": 4725,
+  "unique_locations": 67950,
+  "unique_question_texts": 46322,
+  "models": 1425,
+  "lower_models": 675,
+  "upper_models": 750,
+  "lower_ranges": 27,
+  "upper_ranges": 30,
+  "models_per_range": 25,
+  "max_exact_question_reuse": 3,
+  "max_exact_question_reuse_per_system": {
+    "lower": 3,
+    "upper": 3
+  },
+  "excluded_surahs": [
+    1
+  ],
+  "start_filters": "لا تبدأ الأسئلة من الآية الأولى أو الثانية من أي سورة، ولا تشمل الفاتحة.",
+  "minimum_page_gap_within_model": 3,
+  "ending_rule": "تنتهي الأسئلة عند خاتمة آية فعلية، ويُعرض مقتطف من آخر كلمات الآية.",
+  "systems": {
+    "lower": "27 وحدة مسماة من الناس إلى أعلى المصحف؛ الجديد 5 أو 4 حسب الوحدة، والقديم حسب تعريف الوحدة.",
+    "upper": "30 جزءًا قياسيًا من أعلى المصحف إلى أسفله؛ الجديد 4 والقديم 3."
+  },
+  "source": "Tanzil Quran text via Quran JSON (uthmani), Hafs scripts; standard page numbers from Quran.com verse metadata."
+}
