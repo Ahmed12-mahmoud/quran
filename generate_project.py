@@ -63,7 +63,7 @@ def slice_between(start_key,end_key):
 def valid_start(start, used_pages, model_starts, model_seen):
     key=norm_q(start['text'])
     return key not in model_seen and all(abs(start['page']-p)>=3 for p in used_pages)
-def choose_questions(pool, needed, rng, model_starts, model_seen, usage):
+def choose_questions(pool, needed, rng, model_starts, model_seen, usage, basic_count=3):
     eligible=[x for x in pool if x['surah']!=1 and x.get('page') and x['ayah']>2 and x['page']<=last_page-2]
     if not eligible: raise RuntimeError('No eligible verses in part')
     first_page=min(x['page'] for x in eligible)
@@ -97,7 +97,7 @@ def choose_questions(pool, needed, rng, model_starts, model_seen, usage):
             for end_q in ends:
                 text=qtext(start_q,end_q); key=f"{start_q['surah']}:{start_q['ayah']}-{end_q['surah']}:{end_q['ayah']}"
                 if usage[key]<3 and key not in model_seen and key not in local_keys:
-                    chosen=(start_q,end_q,text,key,'أساسي' if idx<3 else 'احتياطي'); break
+                    chosen=(start_q,end_q,text,key,'أساسي' if idx<basic_count else 'احتياطي'); break
             if not chosen: okay=False; break
             result.append(chosen); local_keys.append(chosen[3])
         if okay:
@@ -150,7 +150,8 @@ def add_family(family, family_title, ranges):
             for part_id in parts:
                 pool = custom_pools[part_id] if family=='lower' else juz_verses[part_id]
                 needed = counts[0] if part_id==new_part else counts[1]
-                selected=choose_questions(pool,needed,random.Random(20261026+model_id*101+part_id),model_starts,model_seen,family_usage)
+                basic_count=(needed-1) if part_id==new_part else needed
+                selected=choose_questions(pool,needed,random.Random(20261026+model_id*101+part_id),model_starts,model_seen,family_usage,basic_count=basic_count)
                 part_name = custom_by_id[part_id][1] if family=='lower' else f'الجزء {part_id:02d}'
                 for q_index,(start_q,end_q,text,key,kind) in enumerate(selected):
                     item=dict(start_q); item.update({'end_surah':end_q['surah'],'end_ayah':end_q['ayah'],'end_page':end_q['page'],'text':text,'kind':kind,'model':model_id,'system':family,'system_title':family_title,'range_id':range_id,'range_key':f'{family}-{range_id:02d}','range_name':range_name,'model_in_range':local_model,'part_id':part_id,'part_name':part_name,'is_new':part_id==new_part,'uid':f'{family}-r{range_id}-m{local_model}-p{part_id}-{start_q["surah"]}:{start_q["ayah"]}-{end_q["surah"]}:{end_q["ayah"]}'})
@@ -161,10 +162,16 @@ def add_family(family, family_title, ranges):
 
 lower_ranges=[]
 for rid in range(1,28):
-    start=28-rid; parts=list(range(start,28)); start_name=custom_by_id[start][1]
-    start_display=start_name.split(' إلى ')[0].replace('باقي ','')
-    label='اختبار من الناس إلى النبأ' if rid==1 else f'اختبار من {start_display} إلى الناس'
-    unit=custom_by_id[start]; lower_ranges.append((rid,parts,label,start,(unit[5],unit[6])))
+    if rid==26:
+        # من البقرة إلى الناس: الوحدة الأولى، ثم تخطي باقي البقرة، ثم آل عمران إلى الناس.
+        parts=[1]+list(range(3,28)); label='اختبار من البقرة إلى الناس'; new_part=1
+    else:
+        start=28-rid; parts=list(range(start,28)); start_name=custom_by_id[start][1]
+        start_display=start_name.split(' إلى ')[0].replace('باقي ','')
+        label='اختبار من الناس إلى النبأ' if rid==1 else ('اختبار من الفاتحة إلى الناس' if rid==27 else f'اختبار من {start_display} إلى الناس')
+        new_part=start
+    unit=custom_by_id[new_part]
+    lower_ranges.append((rid,parts,label,new_part,(unit[5],unit[6])))
 add_family('lower','الاختبارات من الناس إلى الفاتحة',lower_ranges)
 upper_ranges=[]
 for rid in range(1,31):
@@ -309,7 +316,7 @@ for family,count in [('lower',27),('upper',30)]:
         if rows: index_rows.append({'system':family,'range_id':rid,'range_key':key,'name':rows[0]['range_name'],'models':25,'file':f'/ranges/{key}.json'})
 (ranges_dir/'index.json').write_text(json.dumps(index_rows,ensure_ascii=False,indent=2),encoding='utf-8')
 (ranges_dir/'catalog.json').write_text(json.dumps(index_rows,ensure_ascii=False,indent=2),encoding='utf-8')
-report={'total_questions':len(all_questions),'basic_questions':len([q for q in all_questions if q['kind']=='أساسي']),'reserve_questions':len([q for q in all_questions if q['kind']=='احتياطي']),'unique_locations':len({q['uid'] for q in all_questions}),'unique_question_texts':len({norm(q['text']) for q in all_questions}),'models':len(models),'lower_models':675,'upper_models':750,'lower_ranges':27,'upper_ranges':30,'models_per_range':25,'max_exact_question_reuse':max(family_max_reuse.values()),'max_exact_question_reuse_per_system':family_max_reuse,'excluded_surahs':[1],'start_filters':'لا تبدأ الأسئلة من الآية الأولى أو الثانية من أي سورة، ولا تشمل الفاتحة.','minimum_page_gap_within_model':3,'ending_rule':'تنتهي الأسئلة عند خاتمة آية فعلية، ويُعرض مقتطف من آخر كلمات الآية.','systems':{'lower':'27 وحدة مسماة من الناس إلى أعلى المصحف؛ الجديد 5 أو 4 حسب الوحدة، والقديم حسب تعريف الوحدة.','upper':'30 جزءًا قياسيًا من أعلى المصحف إلى أسفله؛ الجديد 4 والقديم 3.'},'source':'Tanzil Quran text via Quran JSON (uthmani), Hafs scripts; standard page numbers from Quran.com verse metadata.'}
+report={'total_questions':len(all_questions),'basic_questions':len([q for q in all_questions if q['kind']=='أساسي']),'reserve_questions':len([q for q in all_questions if q['kind']=='احتياطي']),'unique_locations':len({q['uid'] for q in all_questions}),'unique_question_texts':len({norm(q['text']) for q in all_questions}),'models':len(models),'lower_models':675,'upper_models':750,'lower_ranges':27,'upper_ranges':30,'models_per_range':25,'max_exact_question_reuse':max(family_max_reuse.values()),'max_exact_question_reuse_per_system':family_max_reuse,'excluded_surahs':[1],'start_filters':'لا تبدأ الأسئلة من الآية الأولى أو الثانية من أي سورة، ولا تشمل الفاتحة.','minimum_page_gap_within_model':3,'ending_rule':'تنتهي الأسئلة عند خاتمة آية فعلية، ويُعرض مقتطف من آخر كلمات الآية.','systems':{'lower':'الوحدات 2 و3 و4 و8 و9 و10: الجديد 5 (4 أساسية و1 احتياطي) والقديم 4؛ باقي الوحدات: الجديد 4 (3 أساسية و1 احتياطي) والقديم 3.','upper':'30 جزءًا قياسيًا من أعلى المصحف إلى أسفله؛ الجزء الجديد 3 أساسية و1 احتياطي، والأجزاء القديمة 3 أساسية.'},'source':'Tanzil Quran text via Quran JSON (uthmani), Hafs scripts; standard page numbers from Quran.com verse metadata.'}
 (ROOT/'QA_REPORT.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
 (ROOT/'questions_database.json').write_text(json.dumps({'source':'Tanzil/Quran JSON','questions':all_questions},ensure_ascii=False,indent=2),encoding='utf-8')
 print(json.dumps({'models':len(models),'lower_models':675,'upper_models':750,'docs':len(list(DOCS.glob('*.docx'))),'questions':len(all_questions),'max_reuse_per_system':family_max_reuse,'zip':str(ROOT/'نماذج اختبارات القرآن الكريم.zip')},ensure_ascii=False))
