@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Local environment variables (لا ترفع المفاتيح السرية)
+.env
+.env.*
+!.env.example
+
+# Python cache and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Temporary files
+*.tmp
+*.temp
+
+# Generated Word source files are produced by generate_project.py; the website
+# creates updated Word/ZIP files directly in the browser.
+documents/
+public/documents/
+نماذج اختبارات القرآن الكريم.zip
+quranexam-github-latest.zip
+range-zips-all.zip
+ranges-data-all.zip
+website-external-upload-*.zip
+questions_database.json
+public/range-zips/
+
+quranexam-two-systems-source.zip
