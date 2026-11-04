@@ -1,0 +1,458 @@
+[
+  {
+    "system": "lower",
+    "range_id": 1,
+    "range_key": "lower-01",
+    "name": "اختبار من الناس إلى النبأ",
+    "models": 25,
+    "file": "/ranges/lower-01.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 2,
+    "range_key": "lower-02",
+    "name": "اختبار من الملك إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-02.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 3,
+    "range_key": "lower-03",
+    "name": "اختبار من المجادلة إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-03.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 4,
+    "range_key": "lower-04",
+    "name": "اختبار من الذاريات إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-04.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 5,
+    "range_key": "lower-05",
+    "name": "اختبار من الأحقاف إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-05.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 6,
+    "range_key": "lower-06",
+    "name": "اختبار من الشورى إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-06.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 7,
+    "range_key": "lower-07",
+    "name": "اختبار من الزمر إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-07.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 8,
+    "range_key": "lower-08",
+    "name": "اختبار من يس إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-08.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 9,
+    "range_key": "lower-09",
+    "name": "اختبار من الأحزاب إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-09.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 10,
+    "range_key": "lower-10",
+    "name": "اختبار من العنكبوت إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-10.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 11,
+    "range_key": "lower-11",
+    "name": "اختبار من النمل إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-11.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 12,
+    "range_key": "lower-12",
+    "name": "اختبار من الفرقان إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-12.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 13,
+    "range_key": "lower-13",
+    "name": "اختبار من المؤمنون إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-13.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 14,
+    "range_key": "lower-14",
+    "name": "اختبار من الأنبياء إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-14.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 15,
+    "range_key": "lower-15",
+    "name": "اختبار من مريم إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-15.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 16,
+    "range_key": "lower-16",
+    "name": "اختبار من الإسراء إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-16.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 17,
+    "range_key": "lower-17",
+    "name": "اختبار من الحجر إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-17.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 18,
+    "range_key": "lower-18",
+    "name": "اختبار من يوسف إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-18.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 19,
+    "range_key": "lower-19",
+    "name": "اختبار من يونس إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-19.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 20,
+    "range_key": "lower-20",
+    "name": "اختبار من الأنفال إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-20.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 21,
+    "range_key": "lower-21",
+    "name": "اختبار من الأعراف إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-21.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 22,
+    "range_key": "lower-22",
+    "name": "اختبار من الأنعام إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-22.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 23,
+    "range_key": "lower-23",
+    "name": "اختبار من المائدة إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-23.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 24,
+    "range_key": "lower-24",
+    "name": "اختبار من النساء إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-24.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 25,
+    "range_key": "lower-25",
+    "name": "اختبار من آل عمران إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-25.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 26,
+    "range_key": "lower-26",
+    "name": "اختبار من أول جزء في البقرة إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-26.json"
+  },
+  {
+    "system": "lower",
+    "range_id": 27,
+    "range_key": "lower-27",
+    "name": "اختبار من الفاتحة إلى الناس",
+    "models": 25,
+    "file": "/ranges/lower-27.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 1,
+    "range_key": "upper-01",
+    "name": "اختبار من الفاتحة إلى البقرة حتى الآية 141",
+    "models": 25,
+    "file": "/ranges/upper-01.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 2,
+    "range_key": "upper-02",
+    "name": "اختبار من الفاتحة إلى البقرة حتى الآية 252",
+    "models": 25,
+    "file": "/ranges/upper-02.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 3,
+    "range_key": "upper-03",
+    "name": "اختبار من الفاتحة إلى آل عمران حتى الآية 92",
+    "models": 25,
+    "file": "/ranges/upper-03.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 4,
+    "range_key": "upper-04",
+    "name": "اختبار من الفاتحة إلى النساء حتى الآية 23",
+    "models": 25,
+    "file": "/ranges/upper-04.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 5,
+    "range_key": "upper-05",
+    "name": "اختبار من الفاتحة إلى النساء حتى الآية 147",
+    "models": 25,
+    "file": "/ranges/upper-05.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 6,
+    "range_key": "upper-06",
+    "name": "اختبار من الفاتحة إلى المائدة حتى الآية 81",
+    "models": 25,
+    "file": "/ranges/upper-06.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 7,
+    "range_key": "upper-07",
+    "name": "اختبار من الفاتحة إلى الأنعام حتى الآية 110",
+    "models": 25,
+    "file": "/ranges/upper-07.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 8,
+    "range_key": "upper-08",
+    "name": "اختبار من الفاتحة إلى الأعراف حتى الآية 87",
+    "models": 25,
+    "file": "/ranges/upper-08.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 9,
+    "range_key": "upper-09",
+    "name": "اختبار من الفاتحة إلى الأنفال حتى الآية 40",
+    "models": 25,
+    "file": "/ranges/upper-09.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 10,
+    "range_key": "upper-10",
+    "name": "اختبار من الفاتحة إلى التوبة حتى الآية 92",
+    "models": 25,
+    "file": "/ranges/upper-10.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 11,
+    "range_key": "upper-11",
+    "name": "اختبار من الفاتحة إلى هود حتى الآية 5",
+    "models": 25,
+    "file": "/ranges/upper-11.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 12,
+    "range_key": "upper-12",
+    "name": "اختبار من الفاتحة إلى يوسف حتى الآية 52",
+    "models": 25,
+    "file": "/ranges/upper-12.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 13,
+    "range_key": "upper-13",
+    "name": "اختبار من الفاتحة إلى إبراهيم حتى الآية 52",
+    "models": 25,
+    "file": "/ranges/upper-13.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 14,
+    "range_key": "upper-14",
+    "name": "اختبار من الفاتحة إلى النحل حتى الآية 128",
+    "models": 25,
+    "file": "/ranges/upper-14.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 15,
+    "range_key": "upper-15",
+    "name": "اختبار من الفاتحة إلى الكهف حتى الآية 74",
+    "models": 25,
+    "file": "/ranges/upper-15.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 16,
+    "range_key": "upper-16",
+    "name": "اختبار من الفاتحة إلى طه حتى الآية 135",
+    "models": 25,
+    "file": "/ranges/upper-16.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 17,
+    "range_key": "upper-17",
+    "name": "اختبار من الفاتحة إلى الحج حتى الآية 78",
+    "models": 25,
+    "file": "/ranges/upper-17.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 18,
+    "range_key": "upper-18",
+    "name": "اختبار من الفاتحة إلى الفرقان حتى الآية 20",
+    "models": 25,
+    "file": "/ranges/upper-18.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 19,
+    "range_key": "upper-19",
+    "name": "اختبار من الفاتحة إلى النمل حتى الآية 55",
+    "models": 25,
+    "file": "/ranges/upper-19.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 20,
+    "range_key": "upper-20",
+    "name": "اختبار من الفاتحة إلى العنكبوت حتى الآية 45",
+    "models": 25,
+    "file": "/ranges/upper-20.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 21,
+    "range_key": "upper-21",
+    "name": "اختبار من الفاتحة إلى الأحزاب حتى الآية 30",
+    "models": 25,
+    "file": "/ranges/upper-21.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 22,
+    "range_key": "upper-22",
+    "name": "اختبار من الفاتحة إلى يس حتى الآية 27",
+    "models": 25,
+    "file": "/ranges/upper-22.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 23,
+    "range_key": "upper-23",
+    "name": "اختبار من الفاتحة إلى الزمر حتى الآية 31",
+    "models": 25,
+    "file": "/ranges/upper-23.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 24,
+    "range_key": "upper-24",
+    "name": "اختبار من الفاتحة إلى فصلت حتى الآية 46",
+    "models": 25,
+    "file": "/ranges/upper-24.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 25,
+    "range_key": "upper-25",
+    "name": "اختبار من الفاتحة إلى الجاثية حتى الآية 37",
+    "models": 25,
+    "file": "/ranges/upper-25.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 26,
+    "range_key": "upper-26",
+    "name": "اختبار من الفاتحة إلى الذاريات حتى الآية 30",
+    "models": 25,
+    "file": "/ranges/upper-26.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 27,
+    "range_key": "upper-27",
+    "name": "اختبار من الفاتحة إلى الحديد حتى الآية 29",
+    "models": 25,
+    "file": "/ranges/upper-27.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 28,
+    "range_key": "upper-28",
+    "name": "اختبار من الفاتحة إلى التحريم حتى الآية 12",
+    "models": 25,
+    "file": "/ranges/upper-28.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 29,
+    "range_key": "upper-29",
+    "name": "اختبار من الفاتحة إلى المرسلات حتى الآية 50",
+    "models": 25,
+    "file": "/ranges/upper-29.json"
+  },
+  {
+    "system": "upper",
+    "range_id": 30,
+    "range_key": "upper-30",
+    "name": "اختبار من الفاتحة إلى الناس حتى الآية 6",
+    "models": 25,
+    "file": "/ranges/upper-30.json"
+  }
+]
