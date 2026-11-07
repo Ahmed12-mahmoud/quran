@@ -1,0 +1,13 @@
+{
+  "routes": 46,
+  "tests": 1263,
+  "models": 31575,
+  "questions": 1519075,
+  "route_files": 46,
+  "starts_at_ayah_1_or_2": 0,
+  "fatiha_questions": 0,
+  "duplicate_starts_inside_model": 0,
+  "minimum_page_span": 0,
+  "unique_start_positions": 5986,
+  "status": "pass"
+}
