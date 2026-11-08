@@ -90,6 +90,9 @@ def main():
                 name = 'من الفاتحة إلى الناس'
             if int(route['route_number']) == 46 and 'إلى الفاتحة' in clean(test.get('raw', '')):
                 name = 'من الفاتحة إلى الناس'
+            name = re.sub(r'^من\s+من\s+', 'من ', name)
+            name = re.sub(r'^من\s+سورة\s+', 'من ', name)
+            name = re.sub(r'(آل عمران|البقرة|النساء|المائدة|الأنعام|الأعراف|الأنفال|التوبة|الفجر|النبأ|المطففين)\s*(\d+)\s*إلى\s*\1\s*(\d+)\s*إلى الناس', r'\1 آية \2 إلى \1 آية \3 إلى الناس', name)
             test['name'] = name
             test['display_name'] = name
             test['raw_normalized'] = clean(test.get('raw', ''))
@@ -103,11 +106,15 @@ def main():
         tests = json.loads(path.read_text(encoding='utf-8'))
         by_test = {int(t['test']): t for t in route['tests']}
         for entry in tests:
-            source = by_test.get(int(entry['test']))
+            entry_test = entry.get('test', entry.get('test_number'))
+            source = by_test.get(int(entry_test)) if entry_test is not None else None
             if not source:
                 continue
             name = source['name']
-            for model in entry.get('models', []):
+            models = entry.get('models', []) if isinstance(entry.get('models', []), list) else []
+            if 'preview' in entry:
+                models = [entry]
+            for model in models:
                 model['test_name'] = name
                 model['range_name'] = name
                 model['name'] = f"{name} — نموذج {int(model.get('model_in_range', 0)):02d}"
