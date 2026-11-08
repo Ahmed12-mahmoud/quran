@@ -208,6 +208,10 @@ for jid,st in enumerate(JUZ_STARTS,1):
 
 def lower_units_from_start(page):
     first=next((uid for uid,(a,b) in sorted(unit_bounds.items()) if b>=page),27)
+    # The lower-direction cumulative system always keeps the first Fatiha-to-
+    # beginning-of-Baqara unit when a test starts inside the second Baqara unit.
+    if first == 2:
+        first = 1
     return list(range(first,28))
 
 def upper_juz_to_page(page):
@@ -231,16 +235,30 @@ for route in CATALOG['routes']:
     route_seen=set()
     for test in route['tests']:
         lo,hi=row_bounds(test['raw']); total=row_count(test['raw'])
-        lower_units=lower_units_from_start(lo) if route['direction']=='from_nas' else []
+        foundation = route['route_number'] == 46
+        lower_units=lower_units_from_start(lo) if route['direction']=='from_nas' and not foundation else []
+        # The category-one/two closing test is the deliberate exception:
+        # first Baqara unit, skip the remainder of Baqara, then continue from
+        # Al عمران through الناس.
+        if route['direction']=='from_nas' and route['route_number'] in range(24,36) and test['test']==len(route['tests']):
+            lower_units=[1]+list(range(3,28))
+        if route['direction']=='from_nas' and route['route_number'] in range(36,42):
+            if test['test']==len(route['tests'])-1:
+                lower_units=[1]+list(range(3,28))
+            elif test['test']==len(route['tests']):
+                lower_units=list(range(1,28))
         upper_juz=upper_juz_to_page(hi) if route['direction']=='from_fatiha' else []
         new_unit=min(lower_units,key=lambda uid:unit_bounds[uid][0]) if lower_units else None
         new_juz=max(upper_juz) if upper_juz else None
         active_parts=lower_units or upper_juz
-        display_name=(("من أول جزء في البقرة إلى الناس" if new_unit==1 else ("من البقرة إلى الناس" if new_unit==2 else ("من "+unit_by_id[new_unit][1].split(" إلى ",1)[0]+" إلى الناس"))) if route['direction']=='from_nas' else (test.get('name') or route['path']))
+        display_name=test.get('name') or ('من الناس إلى الفاتحة' if route['direction']=='from_nas' else route['path'])
         models=[]
         for model_no in range(1,26):
             global_model+=1; selected_with_parts=[]; route_seen=set()
-            if lower_units:
+            if foundation:
+                picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']])
+                selected_with_parts=[(item,test['test']) for item in picked]
+            elif lower_units:
                 for uid in sorted(lower_units,key=lambda x:unit_bounds[x][0]):
                     u=unit_by_id[uid]; needed=u[4] if uid==new_unit else u[5]
                     ulo,uhi=unit_bounds[uid]
@@ -257,7 +275,7 @@ for route in CATALOG['routes']:
                 selected_with_parts=[(item,test['test']) for item in picked]
             preview=[]
             for qi,((start,end,key,kind),part_id) in enumerate(selected_with_parts,1):
-                part_name=unit_by_id[part_id][1] if route['direction']=='from_nas' and part_id in unit_by_id else (f'الجزء {part_id:02d}' if route['direction']=='from_fatiha' else route['path'])
+                part_name=(display_name if foundation else (unit_by_id[part_id][1] if route['direction']=='from_nas' and part_id in unit_by_id else (f'الجزء {part_id:02d}' if route['direction']=='from_fatiha' else route['path'])))
                 preview.append({'uid':f'route-{route["route_number"]:02d}-test-{test["test"]:03d}-model-{model_no:02d}-q-{qi:02d}-{key}','surah':start['surah'],'ayah':start['ayah'],'page':start['page'],'end_surah':end['surah'],'end_ayah':end['ayah'],'end_page':end['page'],'text':qtext(start,end),'kind':kind,'question_no':qi,'part_id':part_id,'part_name':part_name})
             models.append({'id':f'route-{route["route_number"]:02d}-test-{test["test"]:03d}-model-{model_no:02d}','name':f'{display_name} — نموذج {model_no:02d}','direction':route['direction'],'direction_name':route['direction_name'],'category_name':route['category_name'],'path_name':route['path'],'route_number':route['route_number'],'test_number':test['test'],'range_name':display_name,'model_in_range':model_no,'questions':len(preview),'basic':sum(q['kind']=='أساسي' for q in preview),'reserve':sum(q['kind']=='احتياطي' for q in preview),'preview':preview})
         file_name=f'test-{test["test"]:03d}.json'; (route_dir/file_name).write_text(json.dumps(models,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
