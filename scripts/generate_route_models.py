@@ -65,10 +65,39 @@ def choose_question(pool, page, used_pages, seen_starts, usage, rng, lo, hi):
                 return start,end,key
     return None
 
-def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None):
+def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundation=False):
     pool=[v for v in verses if eligible(v,lo,hi)]
     if not pool: raise RuntimeError(f'empty range {lo}-{hi}')
     pages=sorted({v['page'] for v in pool}); span=max(1,len(pages))
+    if foundation:
+        # التأسيس: شريحة مستقلة لكل سؤال؛ 10 أوجه = سؤالان، 13 وجهًا = 3 أسئلة.
+        # نستخدم ceil(الأوجه/6) مع توزيع متساوٍ، فلا تجتمع الأسئلة في أول سورة.
+        rng=random.Random(seed)
+        boundaries=[pages[0]+(span*i)//total for i in range(total+1)]
+        boundaries[-1]=pages[-1]+1
+        for attempt in range(300):
+            chosen=[]; used=[]; local=set()
+            for bi in range(total):
+                left,right=boundaries[bi],boundaries[bi+1]
+                band=[v for v in pool if left<=v['page']<right and normalize(v['text']) not in local]
+                rng.shuffle(band)
+                picked=next((v for v in band if all(abs(v['page']-p)>=2 for p in used)),None)
+                if not picked:
+                    picked=next((v for v in band if normalize(v['text']) not in local),None)
+                if not picked: break
+                ends=[v for v in pool if v['page']>=picked['page']+2 and v['page']<=min(hi,picked['page']+2) and v['ayah']>1]
+                ends=ends or [v for v in pool if picked['page']<=v['page']<=hi and v['ayah']>1]
+                if not ends: break
+                rng.shuffle(ends)
+                end=ends[0]
+                key=f'{picked["surah"]}:{picked["ayah"]}-{end["surah"]}:{end["ayah"]}'
+                chosen.append((picked,end,key,'أساسي')); used.append(picked['page']); local.add(normalize(picked['text']))
+            if len(chosen)==total:
+                for _,_,key,_ in chosen: usage[key]+=1
+                for st,_,_,_ in chosen: route_seen.add(normalize(st['text']))
+                chosen.sort(key=lambda x:(x[0]['page'],x[0]['surah'],x[0]['ayah']))
+                return chosen
+        raise RuntimeError(f'cannot distribute foundation questions for pages {lo}-{hi}')
     basic=(max(1,total-1) if total>=4 else total) if basic_count is None else basic_count
     bands=4 if basic>=4 else 3
     # Fixed face bands: 7 + 7 + 6 for the normal 3-basic case; four equal 7-face bands when needed.
@@ -236,6 +265,8 @@ for route in CATALOG['routes']:
     for test in route['tests']:
         lo,hi=row_bounds(test['raw']); total=row_count(test['raw'])
         foundation = route['route_number'] == 46
+        if foundation:
+            total=max(1,(hi-lo+1 + 5)//6)
         lower_units=lower_units_from_start(lo) if route['direction']=='from_nas' and not foundation else []
         # The category-one/two closing test is the deliberate exception:
         # first Baqara unit, skip the remainder of Baqara, then continue from
@@ -246,7 +277,8 @@ for route in CATALOG['routes']:
             if test['test']==len(route['tests'])-1:
                 lower_units=[1]+list(range(3,28))
             elif test['test']==len(route['tests']):
-                lower_units=list(range(1,28))
+                # اختبار بقية البقرة يبدأ من الوحدة 2، ولا يعيد الجزء الأول.
+                lower_units=[2]+list(range(3,28))
         upper_juz=upper_juz_to_page(hi) if route['direction']=='from_fatiha' else []
         new_unit=min(lower_units,key=lambda uid:unit_bounds[uid][0]) if lower_units else None
         new_juz=max(upper_juz) if upper_juz else None
@@ -256,7 +288,7 @@ for route in CATALOG['routes']:
         for model_no in range(1,26):
             global_model+=1; selected_with_parts=[]; route_seen=set()
             if foundation:
-                picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']])
+                picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']],foundation=foundation)
                 selected_with_parts=[(item,test['test']) for item in picked]
             elif lower_units:
                 for uid in sorted(lower_units,key=lambda x:unit_bounds[x][0]):
@@ -271,7 +303,7 @@ for route in CATALOG['routes']:
                     picked=select_questions(ulo,uhi,needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+jid,route_seen,route_usage[route['direction']],basic_count=(3 if jid==new_juz else 3))
                     selected_with_parts.extend((item,jid) for item in picked)
             else:
-                picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']])
+                picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']],foundation=foundation)
                 selected_with_parts=[(item,test['test']) for item in picked]
             preview=[]
             for qi,((start,end,key,kind),part_id) in enumerate(selected_with_parts,1):
