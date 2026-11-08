@@ -53,7 +53,7 @@ function App(){
   const effective=useMemo(()=>data.map(m=>({...m,preview:m.preview.map(q=>edits[q.uid]?{...q,text:edits[q.uid]}:q)})),[data,edits]);
   const rangeOptions=useMemo(()=>rangeIndex.filter(x=>x.system===selectedSystem).map(x=>({id:Number(x.range_id),name:x.name,file:x.file,range_key:x.range_key})).sort((a,b)=>a.id-b.id),[selectedSystem]);
   const catalogRoutes=useMemo(()=>routeCatalog.routes.filter(r=>r.direction===catalogDirection),[catalogDirection]);
-  const categoryOrder=['الفئة الأولى','الفئة الثانية','الفئة الثالثة','الفئة الرابعة','فئة التأسيس'];
+  const categoryOrder=['الفئة الأولى','الفئة الثانية','الفئة الثالثة','الفئة الرابعة','التأسيس'];
   const pathOrder=['المسار الأول','المسار الثاني','المسار الثالث','المسار الرابع','المسار الخامس','المسار السادس','مسار التأسيس'];
   const catalogCategories=useMemo(()=>categoryOrder.filter(c=>catalogRoutes.some(r=>r.category_name===c)),[catalogRoutes]);
   const catalogPaths=useMemo(()=>pathOrder.filter(p=>catalogRoutes.some(r=>(catalogCategory==='all'||r.category_name===catalogCategory)&&r.path===p)),[catalogRoutes,catalogCategory]);
