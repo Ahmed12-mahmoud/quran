@@ -30,7 +30,8 @@ for v in verses: by_page[v['page']].append(v)
 for group in by_page.values():
     for i,v in enumerate(group): v['page_pos']=i+1; v['page_total']=len(group)
 last_page=max(v['page'] for v in verses)
-index={(v['surah'],v['ayah']):i for i,v in enumerate(verses)}
+verse_index={(v['surah'],v['ayah']):i for i,v in enumerate(verses)}
+SURAH_MAX={s:max(v['ayah'] for v in verses if v['surah']==s) for s in range(1,115)}
 
 def row_bounds(raw):
     m=re.search(r'([٠-٩0-9]+)\s*[–-]\s*([٠-٩0-9]+)', raw)
@@ -48,8 +49,26 @@ def row_count(raw):
     if 'خمسة أسئلة' in raw or 'خمس أسئلة' in raw: return 5
     return 4
 
-def eligible(a,lo,hi):
-    return lo<=a['page']<=hi and a['surah']!=1 and a['ayah']>2 and a['page']<last_page-1
+def parse_endpoint(text, default_last=False):
+    text=(text or '').strip()
+    for sid in sorted(range(1,115), key=lambda s:len(SURAH_NAMES[s-1]), reverse=True):
+        name=SURAH_NAMES[sid-1]
+        if text.startswith(name):
+            m=re.search(r'آية\s*(\d+)', text)
+            return (sid, int(m.group(1)) if m else (SURAH_MAX[sid] if default_last else 1))
+    return None
+
+def named_verse_bounds(name):
+    if not name or ' إلى ' not in name: return (None,None)
+    left,right=name[3:].split(' إلى ',1)
+    a=parse_endpoint(left,False); b=parse_endpoint(right,True)
+    if not a or not b: return (None,None)
+    ia=verse_index.get(a); ib=verse_index.get(b)
+    return (min(ia,ib),max(ia,ib)) if ia is not None and ib is not None else (None,None)
+
+def eligible(a,lo,hi,verse_lo=None,verse_hi=None):
+    exact = verse_lo is None or verse_lo <= verse_index[(a['surah'],a['ayah'])] <= verse_hi
+    return exact and lo<=a['page']<=hi and a['surah']!=1 and a['ayah']>2 and a['page']<last_page-1
 
 def choose_question(pool, page, used_pages, seen_starts, usage, rng, lo, hi):
     candidates=[v for v in pool if v['page']==page and normalize(v['text']) not in seen_starts and all(abs(v['page']-p)>=3 for p in used_pages)]
@@ -65,8 +84,8 @@ def choose_question(pool, page, used_pages, seen_starts, usage, rng, lo, hi):
                 return start,end,key
     return None
 
-def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundation=False):
-    pool=[v for v in verses if eligible(v,lo,hi)]
+def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundation=False,verse_lo=None,verse_hi=None):
+    pool=[v for v in verses if eligible(v,lo,hi,verse_lo,verse_hi)]
     if not pool: raise RuntimeError(f'empty range {lo}-{hi}')
     pages=sorted({v['page'] for v in pool}); span=max(1,len(pages))
     if foundation:
@@ -97,6 +116,27 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
                 for st,_,_,_ in chosen: route_seen.add(normalize(st['text']))
                 chosen.sort(key=lambda x:(x[0]['page'],x[0]['surah'],x[0]['ayah']))
                 return chosen
+        # تراجع آمن للنطاقات الضيقة: نختار بدايات موزعة فعليًا على صفحات
+        # المدى، ثم نبحث عن نهاية داخل المدى نفسه. لا نسمح بتلاصق البداية
+        # داخل النموذج، لكن لا نفشل التوليد إذا كان عدد المواضع الصالحة محدودًا.
+        ordered=sorted(pool,key=lambda v:(v['page'],v['surah'],v['ayah']))
+        chosen=[]; used_pages=[]; local=set()
+        for pos in range(total):
+            target=pages[min(len(pages)-1, round(pos*(len(pages)-1)/max(1,total-1)))]
+            candidates=sorted(ordered,key=lambda v:(abs(v['page']-target),v['page'],v['surah'],v['ayah']))
+            picked=next((v for v in candidates if normalize(v['text']) not in local and all(abs(v['page']-p)>=2 for p in used_pages)),None)
+            if not picked:
+                picked=next((v for v in candidates if normalize(v['text']) not in local),None)
+            if not picked: break
+            ends=[v for v in pool if v['page']>=picked['page']+2 and v['page']<=hi and v['ayah']>1]
+            ends=ends or [v for v in pool if v['page']>=picked['page'] and v['ayah']>1]
+            end=ends[0] if ends else picked
+            key=f'{picked["surah"]}:{picked["ayah"]}-{end["surah"]}:{end["ayah"]}'
+            chosen.append((picked,end,key,'أساسي')); used_pages.append(picked['page']); local.add(normalize(picked['text']))
+        if len(chosen)==total:
+            for _,_,key,_ in chosen: usage[key]+=1
+            for st,_,_,_ in chosen: route_seen.add(normalize(st['text']))
+            return chosen
         raise RuntimeError(f'cannot distribute foundation questions for pages {lo}-{hi}')
     basic=(max(1,total-1) if total>=4 else total) if basic_count is None else basic_count
     bands=4 if basic>=4 else 3
@@ -232,7 +272,7 @@ unit_by_id={u[0]:u for u in CUSTOM_UNITS}
 JUZ_STARTS=[(1,1),(2,142),(2,253),(3,93),(4,24),(4,148),(5,82),(6,111),(7,88),(8,41),(9,93),(11,6),(12,53),(15,1),(17,1),(18,75),(21,1),(23,1),(25,21),(27,56),(29,46),(33,31),(36,28),(39,32),(41,47),(46,1),(51,31),(58,1),(67,1),(78,1)]
 juz_bounds={}
 for jid,st in enumerate(JUZ_STARTS,1):
-    start_i=index[st]; end_i=(index[JUZ_STARTS[jid]]-1 if jid<30 else len(verses)-1)
+    start_i=verse_index[st]; end_i=(verse_index[JUZ_STARTS[jid]]-1 if jid<30 else len(verses)-1)
     juz_bounds[jid]=(min(verses[i]['page'] for i in range(start_i,end_i+1) if verses[i].get('page')),max(verses[i]['page'] for i in range(start_i,end_i+1) if verses[i].get('page')))
 
 def lower_units_from_start(page):
@@ -265,6 +305,10 @@ for route in CATALOG['routes']:
     for test in route['tests']:
         lo,hi=row_bounds(test['raw']); total=row_count(test['raw'])
         foundation = route['route_number'] == 46
+        # التأسيس يعتمد حدود الصفحات الأصلية في الجدول؛ استخدام حد الآية
+        # هنا قد يستبعد مواضع صحيحة عند عبور الصفحة، لذلك نطبّق حد الآية
+        # الدقيق على الفئة الرابعة والاتجاه الصاعد فقط.
+        verse_lo,verse_hi=named_verse_bounds(test.get('name')) if (route['route_number']>=42 and not foundation) or route['direction']=='from_fatiha' else (None,None)
         if foundation:
             total=max(1,(hi-lo+1 + 5)//6)
         lower_units=lower_units_from_start(lo) if route['direction']=='from_nas' and not foundation else []
@@ -272,15 +316,17 @@ for route in CATALOG['routes']:
         # first Baqara unit, skip the remainder of Baqara, then continue from
         # Al عمران through الناس.
         if route['direction']=='from_nas' and route['route_number'] in range(24,36) and test['test']==len(route['tests']):
-            lower_units=[1]+list(range(3,28))
+            lower_units=list(range(1,28))
         if route['direction']=='from_nas' and route['route_number'] in range(36,42):
             if test['test']==len(route['tests'])-1:
                 lower_units=[1]+list(range(3,28))
             elif test['test']==len(route['tests']):
-                # اختبار بقية البقرة يبدأ من الوحدة 2، ولا يعيد الجزء الأول.
-                lower_units=[2]+list(range(3,28))
+                # الاختبار الكامل يضم أول البقرة ثم بقية البقرة، وبقية الوحدات.
+                lower_units=list(range(1,28))
         upper_juz=upper_juz_to_page(hi) if route['direction']=='from_fatiha' else []
-        new_unit=min(lower_units,key=lambda uid:unit_bounds[uid][0]) if lower_units else None
+        # عند اكتمال النطاق من أول البقرة إلى الناس تكون «بقية البقرة»
+        # هي الوحدة الجديدة ذات السؤال الإضافي، بينما أول البقرة مراجعة.
+        new_unit=(2 if 1 in lower_units and 2 in lower_units else min(lower_units,key=lambda uid:unit_bounds[uid][0])) if lower_units else None
         new_juz=max(upper_juz) if upper_juz else None
         active_parts=lower_units or upper_juz
         display_name=test.get('name') or ('من الناس إلى الفاتحة' if route['direction']=='from_nas' else route['path'])
@@ -288,7 +334,7 @@ for route in CATALOG['routes']:
         for model_no in range(1,26):
             global_model+=1; selected_with_parts=[]; route_seen=set()
             if foundation:
-                picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']],foundation=foundation)
+                picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']],foundation=foundation,verse_lo=verse_lo,verse_hi=verse_hi)
                 selected_with_parts=[(item,test['test']) for item in picked]
             elif lower_units:
                 for uid in sorted(lower_units,key=lambda x:unit_bounds[x][0]):
@@ -303,7 +349,7 @@ for route in CATALOG['routes']:
                     picked=select_questions(ulo,uhi,needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+jid,route_seen,route_usage[route['direction']],basic_count=(3 if jid==new_juz else 3))
                     selected_with_parts.extend((item,jid) for item in picked)
             else:
-                picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']],foundation=foundation)
+                picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']],foundation=foundation,verse_lo=verse_lo,verse_hi=verse_hi)
                 selected_with_parts=[(item,test['test']) for item in picked]
             preview=[]
             for qi,((start,end,key,kind),part_id) in enumerate(selected_with_parts,1):
