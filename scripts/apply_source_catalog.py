@@ -41,34 +41,22 @@ def clean(s: str) -> str:
 
 def extract_name(route, test):
     raw = clean(test.get('raw', ''))
-    if route['direction'] == 'from_fatiha':
-        # The first field in each PDF row is the named cumulative exam range.
-        m = re.search(r'(من الفاتحة إلى .*?)(?=\s+\d+[–-]\d+\b)', raw)
-        if m:
-            return clean(m.group(1))
-        m = re.match(r'(من الفاتحة إلى .*?)(?:\s+\d+\s*)?$', raw)
-        return clean(m.group(1) if m else raw)
-    # For the people-to-fatiha direction, the PDF's folder-name column is the
-    # canonical exam name and differs by category/path.
-    m = re.search(r'-\s*\d+\s*(.*?)(?:\s+\d+\s*)$', raw)
-    if m:
-        name = clean(m.group(1))
-        if name:
-            # In the ascending direction the canonical exam name is the
-            # endpoint of the folder range back down to الناس.
-            if ' إلى ' in name:
-                endpoints = [x.strip() for x in name[3:].split(' إلى ')]
-                # أعلى سورة هي الأقرب إلى الفاتحة؛ use the smallest surah number.
-                endpoint = min(endpoints, key=lambda x: SURAH_ORDER.get(re.sub(r'\s+آية\s+\d+$', '', x), 999))
-                return clean(f'من {endpoint} إلى الناس')
-            if ' و' in name or ' و ' in name:
-                parts = [x.strip() for x in re.split(r'\s+و\s*', name)]
-                endpoint = min(parts, key=lambda x: SURAH_ORDER.get(re.sub(r'\s+آية\s+\d+$', '', x), 999))
-                return clean(f'من {endpoint} إلى الناس')
-            if name.startswith('جزء '):
-                return clean(f'من {name[4:]} إلى الناس')
-            return clean(f'من {name} إلى الناس')
-    return clean(raw.split('  ')[0])
+    # الاسم المعتمد هو عمود «نطاق الاختبار» نفسه في ملف المصدر، وليس اسم
+    # المجلد ولا اسمًا مُعادَ صياغته حسب أعلى سورة. نلتقطه قبل عمود الصفحات.
+    m = re.search(r'^(من\s+.+?)(?=\s+\d+\s*[–-]\s*\d+\b)', raw)
+    name = clean(m.group(1)) if m else clean(raw.split('  ')[0])
+    # جعل أرقام الآيات واضحة في الاسم مع الحفاظ على نفس البداية والنهاية.
+    name = re.sub(r'^(من\s+.+?\s+إلى\s+[^\d]+?)\s+(\d+)$', r'\1 آية \2', name)
+    # في الفئة الرابعة والتأسيس يضع المصدر البداية والنهاية التفصيليتين
+    # في عمود اسم المجلد؛ نعتمدهما حتى لا يضيع رقم الآية.
+    if int(route['route_number']) >= 42:
+        folder = re.search(r'-\s*\d+\s*(من\s+.+?)(?=\s+\d+\s*$)', raw)
+        if folder:
+            name = clean(folder.group(1))
+            name = re.sub(r'\s+(\d+)\s+إلى\s+', r' آية \1 إلى ', name)
+            name = re.sub(r'\s+(\d+)$', r' آية \1', name)
+            name = name.replace('آية آية', 'آية')
+    return name
 
 def main():
     catalog = json.loads(CATALOG.read_text(encoding='utf-8'))
@@ -82,14 +70,6 @@ def main():
         route['direction_name'] = ('من الفاتحة إلى الناس' if route['direction'] == 'from_fatiha' else 'من الناس إلى الفاتحة')
         for test in route['tests']:
             name = extract_name(route, test)
-            if int(route['route_number']) in range(24, 36) and int(test['test']) == len(route['tests']):
-                name = 'من أول جزء في البقرة إلى الناس'
-            if int(route['route_number']) in range(36, 42) and int(test['test']) == len(route['tests']) - 1:
-                name = 'من أول جزء في البقرة إلى الناس'
-            if int(route['route_number']) in range(36, 42) and int(test['test']) == len(route['tests']):
-                name = 'من الفاتحة إلى الناس'
-            if int(route['route_number']) == 46 and 'إلى الفاتحة' in clean(test.get('raw', '')):
-                name = 'من الفاتحة إلى الناس'
             name = re.sub(r'^من\s+من\s+', 'من ', name)
             name = re.sub(r'^من\s+سورة\s+', 'من ', name)
             name = re.sub(r'(آل عمران|البقرة|النساء|المائدة|الأنعام|الأعراف|الأنفال|التوبة|الفجر|النبأ|المطففين)\s*(\d+)\s*إلى\s*\1\s*(\d+)\s*إلى الناس', r'\1 آية \2 إلى \1 آية \3 إلى الناس', name)
