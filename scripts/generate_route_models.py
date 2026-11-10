@@ -96,7 +96,8 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
     # إذا كان الحد الآياتي يمر داخل صفحة واحدة ولا يوفر عدد بدايات كافيًا،
     # نستخدم بقية بدايات الصفحة نفسها فقط؛ فلا نخرج إلى صفحة أو سورة أخرى.
     if len(pool) < total:
-        pool=[v for v in verses if lo<=v['page']<=hi and v['surah']!=1 and v['ayah']>1]
+        pool=[v for v in verses if lo<=v['page']<=hi and v['surah']!=1 and v['ayah']>1
+              and (verse_lo is None or verse_lo <= verse_index[(v['surah'],v['ayah'])] <= verse_hi)]
     if not pool: raise RuntimeError(f'empty range {lo}-{hi}')
     pages=sorted({v['page'] for v in pool}); span=max(1,len(pages))
     if foundation:
@@ -105,6 +106,18 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
         rng=random.Random(seed)
         basic_total=(total-1 if total>=3 else total) if basic_count is None else basic_count
         reserve_at=(total//2 if total>=3 and basic_total < total else -1)
+        if len(pages)==1:
+            ordered=sorted(pool,key=lambda v:(v['ayah'],v['surah']))
+            if not ordered: raise RuntimeError(f'empty one-page range {lo}-{hi}')
+            chosen=[]
+            for pos in range(total):
+                start=ordered[pos % len(ordered)]
+                end=ordered[min(len(ordered)-1,pos+2)]
+                key=f'{start["surah"]}:{start["ayah"]}-{end["surah"]}:{end["ayah"]}'
+                chosen.append((start,end,key,'احتياطي' if pos==reserve_at else 'أساسي'))
+            for _,_,key,_ in chosen: usage[key]+=1
+            for st,_,_,_ in chosen: route_seen.add(normalize(st['text']))
+            return chosen
         boundaries=[pages[0]+(span*i)//total for i in range(total+1)]
         boundaries[-1]=pages[-1]+1
         for attempt in range(300):
@@ -367,8 +380,8 @@ for route in CATALOG['routes']:
             dleft, dright = detail_name[3:].split(' إلى ',1)
             # اسم الاختبار في الفئة الرابعة/التأسيس تراكمي إلى الناس،
             # ويُبنى من نهاية الشريحة الجديدة كما في المصدر.
-            end_surah=re.sub(r'\s*آية\s*\d+\s*$','',dright).strip()
-            display_name=f'من {end_surah} إلى الناس'
+            right_name=re.sub(r'\s+',' ',dright).strip()
+            display_name=f'من {right_name} إلى الناس'
             exact_lo,exact_hi=detail_bounds
         else:
             display_name=(test.get('name') or ('من الناس إلى الفاتحة' if route['direction']=='from_nas' else route['path'])).replace('إىل','إلى')
@@ -395,7 +408,7 @@ for route in CATALOG['routes']:
                     seg_span=len(seg_pages)
                     needed=(4 if seg_span>15 else 3) if is_new else (3 if seg_span>15 else 2)
                     basic_count=needed-1 if is_new and needed>=3 else needed
-                    picked=select_questions(min(seg_pages),max(seg_pages),needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+seg_i,route_seen,route_usage[route['direction']],basic_count=basic_count,verse_lo=seg_lo,verse_hi=seg_hi)
+                    picked=select_questions(min(seg_pages),max(seg_pages),needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+seg_i,route_seen,route_usage[route['direction']],basic_count=basic_count,foundation=True,verse_lo=seg_lo,verse_hi=seg_hi)
                     if is_new and needed>=3:
                         picked=[(item[0],item[1],item[2],'احتياطي' if pi==needed//2 else 'أساسي') for pi,item in enumerate(picked)]
                     selected_with_parts.extend((item,seg_i,seg_name) for item in picked)
@@ -425,5 +438,11 @@ for route in CATALOG['routes']:
         if current_segment:
             previous_category4_segments.append(current_segment)
     print(f'route {route["route_number"]:02d}: {route["test_count"]} tests')
+if os.environ.get('DIRECT_ROUTE_FILES'):
+    final_dir=ROOT/'public'/'route-files'; final_dir.mkdir(parents=True,exist_ok=True)
+    for rn in selected_routes:
+        route_dir=OUT/f'route-{rn:02d}'; merged=[]
+        for fp in sorted(route_dir.glob('test-*.json')): merged.extend(json.loads(fp.read_text(encoding='utf-8')))
+        (final_dir/f'route-{rn:02d}.json').write_text(json.dumps(merged,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
 (CATALOG and (ROOT/'public'/'route-models-index.json').write_text(json.dumps({'summary':CATALOG['summary'],'tests':index},ensure_ascii=False,indent=2),encoding='utf-8'))
 print(json.dumps({'routes':len(CATALOG['routes']),'tests':len(index),'models':global_model},ensure_ascii=False))
