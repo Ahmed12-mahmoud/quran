@@ -331,11 +331,14 @@ OUT.mkdir(parents=True, exist_ok=True)
 index=[]; global_model=0
 route_usage={'from_fatiha':Counter(),'from_nas':Counter()}
 def source_detail_name(test):
-    raw=(test.get('raw') or '').translate(AR).replace('إىل','إلى').replace('االنفطار','الانفطار').replace('التحر يم','التحريم').replace('مر يم','مريم').replace('األنبياء','الأنبياء').replace('المرسالت','المرسلات').replace('المطففني','المطففين')
+    raw=(test.get('raw') or '').translate(AR).replace('إىل','إلى').replace('االنفطار','الانفطار').replace('التحر يم','التحريم').replace('مر يم','مريم').replace('األنبياء','الأنبياء').replace('المرسالت','المرسلات').replace('المطففني','المطففين').replace('الألحقاف','الأحقاف').replace('الألحزاب','الأحزاب').replace('الألنفال','الأنفال').replace('الألنبياء','الأنبياء').replace('الألنعام','الأنعام').replace('الألعراف','الأعراف').replace('ااإلرساء','الإسراء').replace('اإلرساء','الإسراء')
     m=re.search(r'-\s*\d+\s*(من\s+.+?)(?=\s+\d+\s*$)',raw)
     if not m: return ''
-    name=re.sub(r'([ء-ي]+)\s*(\d+)\s*إلى\s*([ء-ي]+)\s*(\d+)',r'\1 آية \2 إلى \3 آية \4',m.group(1))
-    name=re.sub(r'([ء-ي]+)\s*(\d+)\s*إلى\s*([ء-ي]+)\s*(\d+)',r'\1 آية \2 إلى \3 آية \4',name)
+    name=m.group(1)
+    for canonical in sorted(SURAH_NAMES,key=len,reverse=True):
+        spaced='\\s*'.join(re.escape(ch) for ch in canonical)
+        name=re.sub(spaced,canonical,name)
+    name=re.sub(r'^(.+?)\s*(\d+)\s*إلى\s*(.+?)\s*(\d+)$',r'\1 آية \2 إلى \3 آية \4',name)
     return re.sub(r'\s+',' ',name).strip()
 for route in CATALOG['routes']:
     if selected_routes and int(route['route_number']) not in selected_routes: continue
@@ -389,7 +392,10 @@ for route in CATALOG['routes']:
         current_segment=(exact_lo,exact_hi,detail_name or display_name) if is_cumulative and exact_lo is not None and exact_hi is not None else None
         old_segment=None
         if current_segment and previous_category4_segments:
-            old_segment=(min(x[0] for x in previous_category4_segments),max(x[1] for x in previous_category4_segments),previous_category4_segments[0][2])
+            old_lo=min(x[0] for x in previous_category4_segments); old_hi=max(x[1] for x in previous_category4_segments)
+            old_start=verses[old_lo]; old_end=verses[old_hi]
+            old_name=f'من {SURAH_NAMES[old_start["surah"]-1]} آية {old_start["ayah"]} إلى {SURAH_NAMES[old_end["surah"]-1]} آية {old_end["ayah"]}'
+            old_segment=(old_lo,old_hi,old_name)
         models=[]
         for model_no in range(1,26):
             global_model+=1; selected_with_parts=[]; route_seen=set()
