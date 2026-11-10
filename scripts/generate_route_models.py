@@ -302,6 +302,7 @@ def upper_juz_to_page(page):
 def lower_units_for_range(lo,hi):
     return [uid for uid,(a,b) in unit_bounds.items() if b>=lo and a<=hi]
 
+selected_routes={int(x) for x in os.environ.get('ROUTES_ONLY','').split(',') if x.strip().isdigit()}
 if os.environ.get('ROUTES_ONLY'):
     OUT.mkdir(parents=True, exist_ok=True)
     for old in OUT.glob('route-*'):
@@ -316,7 +317,13 @@ else:
 OUT.mkdir(parents=True, exist_ok=True)
 index=[]; global_model=0
 route_usage={'from_fatiha':Counter(),'from_nas':Counter()}
-selected_routes={int(x) for x in os.environ.get('ROUTES_ONLY','').split(',') if x.strip().isdigit()}
+def source_detail_name(test):
+    raw=(test.get('raw') or '').translate(AR).replace('إىل','إلى').replace('االنفطار','الانفطار').replace('التحر يم','التحريم').replace('مر يم','مريم').replace('األنبياء','الأنبياء').replace('المرسالت','المرسلات').replace('المطففني','المطففين')
+    m=re.search(r'-\s*\d+\s*(من\s+.+?)(?=\s+\d+\s*$)',raw)
+    if not m: return ''
+    name=re.sub(r'([ء-ي]+)\s*(\d+)\s*إلى\s*([ء-ي]+)\s*(\d+)',r'\1 آية \2 إلى \3 آية \4',m.group(1))
+    name=re.sub(r'([ء-ي]+)\s*(\d+)\s*إلى\s*([ء-ي]+)\s*(\d+)',r'\1 آية \2 إلى \3 آية \4',name)
+    return re.sub(r'\s+',' ',name).strip()
 for route in CATALOG['routes']:
     if selected_routes and int(route['route_number']) not in selected_routes: continue
     if os.environ.get('LOWER_ONLY') and route['direction'] != 'from_nas': continue
@@ -354,30 +361,43 @@ for route in CATALOG['routes']:
         new_unit=(2 if 1 in lower_units and 2 in lower_units else min(lower_units,key=lambda uid:unit_bounds[uid][0])) if lower_units else None
         new_juz=max(upper_juz) if upper_juz else None
         active_parts=lower_units or upper_juz
-        source_name=test.get('name') or ('من الناس إلى الفاتحة' if route['direction']=='from_nas' else route['path'])
-        if is_cumulative and exact_hi:
-            end_label=source_name.split(' إلى ')[-1].replace('إىل','إلى')
-            display_name=f'من {end_label} إلى الناس'
+        detail_name=source_detail_name(test) or test.get('name') or ''
+        detail_bounds=named_verse_bounds(detail_name)
+        if is_cumulative and detail_bounds!=(None,None):
+            dleft, dright = detail_name[3:].split(' إلى ',1)
+            # اسم الاختبار في الفئة الرابعة/التأسيس تراكمي إلى الناس،
+            # ويُبنى من نهاية الشريحة الجديدة كما في المصدر.
+            end_surah=re.sub(r'\s*آية\s*\d+\s*$','',dright).strip()
+            display_name=f'من {end_surah} إلى الناس'
+            exact_lo,exact_hi=detail_bounds
         else:
-            display_name=source_name.replace('إىل','إلى').replace('االنفطار','الانفطار')
-        current_segment=(exact_lo,exact_hi,display_name) if is_cumulative and exact_lo and exact_hi else None
-        category4_segments=previous_category4_segments + ([current_segment] if current_segment else [])
+            display_name=(test.get('name') or ('من الناس إلى الفاتحة' if route['direction']=='from_nas' else route['path'])).replace('إىل','إلى')
+        verse_lo,verse_hi=(exact_lo,exact_hi) if route['route_number']>=42 or route['direction']=='from_fatiha' else (None,None)
+        current_segment=(exact_lo,exact_hi,detail_name or display_name) if is_cumulative and exact_lo is not None and exact_hi is not None else None
+        old_segment=None
+        if current_segment and previous_category4_segments:
+            old_segment=(min(x[0] for x in previous_category4_segments),max(x[1] for x in previous_category4_segments),previous_category4_segments[0][2])
         models=[]
         for model_no in range(1,26):
             global_model+=1; selected_with_parts=[]; route_seen=set()
             if is_cumulative:
-                for seg_i,(seg_lo,seg_hi,seg_name) in enumerate(category4_segments,1):
+                segments=[]
+                if old_segment: segments.append((old_segment,False))
+                if current_segment: segments.append((current_segment,True))
+                for seg_i,(seg,is_new) in enumerate(segments,1):
+                    seg_lo,seg_hi,seg_name=seg
                     seg_pages=sorted({v['page'] for v in verses if eligible(v,1,last_page,seg_lo,seg_hi)})
+                    if not seg_pages: seg_pages=sorted({v['page'] for v in verses if 1<=v['page']<=last_page and v['surah']!=1 and v['ayah']>1 and seg_lo <= verse_index[(v['surah'],v['ayah'])] <= seg_hi})
+                    if not seg_pages:
+                        seg_pages=sorted({v['page'] for v in verses if seg_lo <= verse_index[(v['surah'],v['ayah'])] <= seg_hi})
+                    if not seg_pages:
+                        raise RuntimeError(f'empty cumulative segment {seg_lo}-{seg_hi} in route {route["route_number"]} test {test["test"]}')
                     seg_span=len(seg_pages)
-                    is_new=(seg_i==len(category4_segments))
                     needed=(4 if seg_span>15 else 3) if is_new else (3 if seg_span>15 else 2)
-                    basic_count=needed-1 if needed>=3 else needed
+                    basic_count=needed-1 if is_new and needed>=3 else needed
                     picked=select_questions(min(seg_pages),max(seg_pages),needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+seg_i,route_seen,route_usage[route['direction']],basic_count=basic_count,verse_lo=seg_lo,verse_hi=seg_hi)
-                    if is_new and needed >= 3:
-                        fixed=[]; reserve_at=needed//2
-                        for pi,item in enumerate(picked):
-                            fixed.append((item[0],item[1],item[2],'احتياطي' if pi==reserve_at else 'أساسي'))
-                        picked=fixed
+                    if is_new and needed>=3:
+                        picked=[(item[0],item[1],item[2],'احتياطي' if pi==needed//2 else 'أساسي') for pi,item in enumerate(picked)]
                     selected_with_parts.extend((item,seg_i,seg_name) for item in picked)
             elif foundation:
                 picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']],basic_count=(total-1 if total>=3 else total),foundation=True,verse_lo=verse_lo,verse_hi=verse_hi)
