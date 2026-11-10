@@ -302,7 +302,13 @@ def upper_juz_to_page(page):
 def lower_units_for_range(lo,hi):
     return [uid for uid,(a,b) in unit_bounds.items() if b>=lo and a<=hi]
 
-if os.environ.get('LOWER_ONLY'):
+if os.environ.get('ROUTES_ONLY'):
+    OUT.mkdir(parents=True, exist_ok=True)
+    for old in OUT.glob('route-*'):
+        try:
+            if int(old.name.split('-')[1]) in selected_routes: shutil.rmtree(old)
+        except (ValueError, IndexError): pass
+elif os.environ.get('LOWER_ONLY'):
     for old in OUT.glob('route-*'):
         if old.name >= 'route-24': shutil.rmtree(old)
 else:
@@ -310,13 +316,16 @@ else:
 OUT.mkdir(parents=True, exist_ok=True)
 index=[]; global_model=0
 route_usage={'from_fatiha':Counter(),'from_nas':Counter()}
+selected_routes={int(x) for x in os.environ.get('ROUTES_ONLY','').split(',') if x.strip().isdigit()}
 for route in CATALOG['routes']:
+    if selected_routes and int(route['route_number']) not in selected_routes: continue
     if os.environ.get('LOWER_ONLY') and route['direction'] != 'from_nas': continue
     route_dir=OUT/f'route-{route["route_number"]:02d}'
     route_dir.mkdir()
     route_seen=set()
     is_foundation = route['route_number'] == 46
     is_category4 = route['category_name'] == 'الفئة الرابعة'
+    is_cumulative = is_category4 or is_foundation
     previous_category4_segments=[]
     for test in route['tests']:
         lo,hi=row_bounds(test['raw']); source_total=row_count(test['raw'])
@@ -346,17 +355,17 @@ for route in CATALOG['routes']:
         new_juz=max(upper_juz) if upper_juz else None
         active_parts=lower_units or upper_juz
         source_name=test.get('name') or ('من الناس إلى الفاتحة' if route['direction']=='from_nas' else route['path'])
-        if is_category4 and exact_hi:
+        if is_cumulative and exact_hi:
             end_label=source_name.split(' إلى ')[-1].replace('إىل','إلى')
             display_name=f'من {end_label} إلى الناس'
         else:
             display_name=source_name.replace('إىل','إلى').replace('االنفطار','الانفطار')
-        current_segment=(exact_lo,exact_hi,display_name) if is_category4 and exact_lo and exact_hi else None
+        current_segment=(exact_lo,exact_hi,display_name) if is_cumulative and exact_lo and exact_hi else None
         category4_segments=previous_category4_segments + ([current_segment] if current_segment else [])
         models=[]
         for model_no in range(1,26):
             global_model+=1; selected_with_parts=[]; route_seen=set()
-            if is_category4:
+            if is_cumulative:
                 for seg_i,(seg_lo,seg_hi,seg_name) in enumerate(category4_segments,1):
                     seg_pages=sorted({v['page'] for v in verses if eligible(v,1,last_page,seg_lo,seg_hi)})
                     seg_span=len(seg_pages)
@@ -364,6 +373,11 @@ for route in CATALOG['routes']:
                     needed=(4 if seg_span>15 else 3) if is_new else (3 if seg_span>15 else 2)
                     basic_count=needed-1 if needed>=3 else needed
                     picked=select_questions(min(seg_pages),max(seg_pages),needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+seg_i,route_seen,route_usage[route['direction']],basic_count=basic_count,verse_lo=seg_lo,verse_hi=seg_hi)
+                    if is_new and needed >= 3:
+                        fixed=[]; reserve_at=needed//2
+                        for pi,item in enumerate(picked):
+                            fixed.append((item[0],item[1],item[2],'احتياطي' if pi==reserve_at else 'أساسي'))
+                        picked=fixed
                     selected_with_parts.extend((item,seg_i,seg_name) for item in picked)
             elif foundation:
                 picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']],basic_count=(total-1 if total>=3 else total),foundation=True,verse_lo=verse_lo,verse_hi=verse_hi)
