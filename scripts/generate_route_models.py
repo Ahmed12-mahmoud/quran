@@ -86,12 +86,25 @@ def choose_question(pool, page, used_pages, seen_starts, usage, rng, lo, hi):
 
 def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundation=False,verse_lo=None,verse_hi=None):
     pool=[v for v in verses if eligible(v,lo,hi,verse_lo,verse_hi)]
+    # بعض النطاقات القصيرة جدًا تحتوي على عدد محدود من مواضع البداية
+    # المسموح بها بعد استبعاد أول آيتين؛ نخفف هذا القيد إلى الآية الثانية
+    # عند الحاجة فقط، مع بقاء حدود السورة والآية الخاصة باسم الاختبار.
+    if len(pool) < total:
+        pool=[v for v in verses
+              if lo<=v['page']<=hi and v['surah']!=1 and v['ayah']>1
+              and (verse_lo is None or verse_lo <= verse_index[(v['surah'],v['ayah'])] <= verse_hi)]
+    # إذا كان الحد الآياتي يمر داخل صفحة واحدة ولا يوفر عدد بدايات كافيًا،
+    # نستخدم بقية بدايات الصفحة نفسها فقط؛ فلا نخرج إلى صفحة أو سورة أخرى.
+    if len(pool) < total:
+        pool=[v for v in verses if lo<=v['page']<=hi and v['surah']!=1 and v['ayah']>1]
     if not pool: raise RuntimeError(f'empty range {lo}-{hi}')
     pages=sorted({v['page'] for v in pool}); span=max(1,len(pages))
     if foundation:
-        # التأسيس: شريحة مستقلة لكل سؤال؛ 10 أوجه = سؤالان، 13 وجهًا = 3 أسئلة.
-        # نستخدم ceil(الأوجه/6) مع توزيع متساوٍ، فلا تجتمع الأسئلة في أول سورة.
+        # التأسيس: كل اختبار نطاق مستقل؛ حتى 15 وجهًا = 3 أسئلة (2 أساسي + احتياطي)،
+        # وفوق 15 وجهًا = 4 أسئلة (3 أساسي + احتياطي)، موزعة على بداية/وسط/نهاية النطاق.
         rng=random.Random(seed)
+        basic_total=(total-1 if total>=3 else total) if basic_count is None else basic_count
+        reserve_at=(total//2 if total>=3 and basic_total < total else -1)
         boundaries=[pages[0]+(span*i)//total for i in range(total+1)]
         boundaries[-1]=pages[-1]+1
         for attempt in range(300):
@@ -110,7 +123,7 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
                 rng.shuffle(ends)
                 end=ends[0]
                 key=f'{picked["surah"]}:{picked["ayah"]}-{end["surah"]}:{end["ayah"]}'
-                chosen.append((picked,end,key,'أساسي')); used.append(picked['page']); local.add(normalize(picked['text']))
+                chosen.append((picked,end,key,'احتياطي' if bi==reserve_at else 'أساسي')); used.append(picked['page']); local.add(normalize(picked['text']))
             if len(chosen)==total:
                 for _,_,key,_ in chosen: usage[key]+=1
                 for st,_,_,_ in chosen: route_seen.add(normalize(st['text']))
@@ -132,7 +145,7 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
             ends=ends or [v for v in pool if v['page']>=picked['page'] and v['ayah']>1]
             end=ends[0] if ends else picked
             key=f'{picked["surah"]}:{picked["ayah"]}-{end["surah"]}:{end["ayah"]}'
-            chosen.append((picked,end,key,'أساسي')); used_pages.append(picked['page']); local.add(normalize(picked['text']))
+            chosen.append((picked,end,key,'احتياطي' if pos==reserve_at else 'أساسي')); used_pages.append(picked['page']); local.add(normalize(picked['text']))
         if len(chosen)==total:
             for _,_,key,_ in chosen: usage[key]+=1
             for st,_,_,_ in chosen: route_seen.add(normalize(st['text']))
@@ -302,62 +315,81 @@ for route in CATALOG['routes']:
     route_dir=OUT/f'route-{route["route_number"]:02d}'
     route_dir.mkdir()
     route_seen=set()
+    is_foundation = route['route_number'] == 46
+    is_category4 = route['category_name'] == 'الفئة الرابعة'
+    previous_category4_segments=[]
     for test in route['tests']:
-        lo,hi=row_bounds(test['raw']); total=row_count(test['raw'])
-        foundation = route['route_number'] == 46
-        # التأسيس يعتمد حدود الصفحات الأصلية في الجدول؛ استخدام حد الآية
-        # هنا قد يستبعد مواضع صحيحة عند عبور الصفحة، لذلك نطبّق حد الآية
-        # الدقيق على الفئة الرابعة والاتجاه الصاعد فقط.
-        verse_lo,verse_hi=named_verse_bounds(test.get('name')) if (route['route_number']>=42 and not foundation) or route['direction']=='from_fatiha' else (None,None)
+        lo,hi=row_bounds(test['raw']); source_total=row_count(test['raw'])
+        foundation = is_foundation
+        exact_lo,exact_hi=named_verse_bounds(test.get('name')) if (route['route_number']>=42 or route['direction']=='from_fatiha') else (None,None)
+        verse_lo,verse_hi=(exact_lo,exact_hi) if route['route_number']>=42 or route['direction']=='from_fatiha' else (None,None)
+        exact_pages=[]
+        if exact_lo and exact_hi:
+            exact_pages=sorted({v['page'] for v in verses if eligible(v,lo,hi,exact_lo,exact_hi)})
+        span_pages=len(exact_pages) or max(1,hi-lo+1)
         if foundation:
-            total=max(1,(hi-lo+1 + 5)//6)
-        lower_units=lower_units_from_start(lo) if route['direction']=='from_nas' and not foundation else []
-        # The category-one/two closing test is the deliberate exception:
-        # first Baqara unit, skip the remainder of Baqara, then continue from
-        # Al عمران through الناس.
+            total=4 if span_pages>15 else 3
+        elif is_category4:
+            total=source_total
+        else:
+            total=source_total
+        lower_units=lower_units_from_start(lo) if route['direction']=='from_nas' and not foundation and not is_category4 else []
         if route['direction']=='from_nas' and route['route_number'] in range(24,36) and test['test']==len(route['tests']):
             lower_units=list(range(1,28))
         if route['direction']=='from_nas' and route['route_number'] in range(36,42):
             if test['test']==len(route['tests'])-1:
                 lower_units=[1]+list(range(3,28))
             elif test['test']==len(route['tests']):
-                # الاختبار الكامل يضم أول البقرة ثم بقية البقرة، وبقية الوحدات.
                 lower_units=list(range(1,28))
         upper_juz=upper_juz_to_page(hi) if route['direction']=='from_fatiha' else []
-        # عند اكتمال النطاق من أول البقرة إلى الناس تكون «بقية البقرة»
-        # هي الوحدة الجديدة ذات السؤال الإضافي، بينما أول البقرة مراجعة.
         new_unit=(2 if 1 in lower_units and 2 in lower_units else min(lower_units,key=lambda uid:unit_bounds[uid][0])) if lower_units else None
         new_juz=max(upper_juz) if upper_juz else None
         active_parts=lower_units or upper_juz
-        display_name=test.get('name') or ('من الناس إلى الفاتحة' if route['direction']=='from_nas' else route['path'])
+        source_name=test.get('name') or ('من الناس إلى الفاتحة' if route['direction']=='from_nas' else route['path'])
+        if is_category4 and exact_hi:
+            end_label=source_name.split(' إلى ')[-1].replace('إىل','إلى')
+            display_name=f'من {end_label} إلى الناس'
+        else:
+            display_name=source_name.replace('إىل','إلى').replace('االنفطار','الانفطار')
+        current_segment=(exact_lo,exact_hi,display_name) if is_category4 and exact_lo and exact_hi else None
+        category4_segments=previous_category4_segments + ([current_segment] if current_segment else [])
         models=[]
         for model_no in range(1,26):
             global_model+=1; selected_with_parts=[]; route_seen=set()
-            if foundation:
-                picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']],foundation=foundation,verse_lo=verse_lo,verse_hi=verse_hi)
-                selected_with_parts=[(item,test['test']) for item in picked]
+            if is_category4:
+                for seg_i,(seg_lo,seg_hi,seg_name) in enumerate(category4_segments,1):
+                    seg_pages=sorted({v['page'] for v in verses if eligible(v,1,last_page,seg_lo,seg_hi)})
+                    seg_span=len(seg_pages)
+                    is_new=(seg_i==len(category4_segments))
+                    needed=(4 if seg_span>15 else 3) if is_new else (3 if seg_span>15 else 2)
+                    basic_count=needed-1 if needed>=3 else needed
+                    picked=select_questions(min(seg_pages),max(seg_pages),needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+seg_i,route_seen,route_usage[route['direction']],basic_count=basic_count,verse_lo=seg_lo,verse_hi=seg_hi)
+                    selected_with_parts.extend((item,seg_i,seg_name) for item in picked)
+            elif foundation:
+                picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']],basic_count=(total-1 if total>=3 else total),foundation=True,verse_lo=verse_lo,verse_hi=verse_hi)
+                selected_with_parts=[(item,test['test'],display_name) for item in picked]
             elif lower_units:
                 for uid in sorted(lower_units,key=lambda x:unit_bounds[x][0]):
-                    u=unit_by_id[uid]; needed=u[4] if uid==new_unit else u[5]
-                    ulo,uhi=unit_bounds[uid]
+                    u=unit_by_id[uid]; needed=u[4] if uid==new_unit else u[5]; ulo,uhi=unit_bounds[uid]
                     picked=select_questions(ulo,uhi,needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+uid,route_seen,route_usage[route['direction']],basic_count=(u[4]-1 if uid==new_unit else u[5]))
-                    selected_with_parts.extend((item,uid) for item in picked)
+                    selected_with_parts.extend((item,uid,None) for item in picked)
             elif upper_juz:
                 for jid in sorted(upper_juz):
-                    needed=4 if jid==new_juz else 3
-                    ulo,uhi=juz_bounds[jid]
-                    picked=select_questions(ulo,uhi,needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+jid,route_seen,route_usage[route['direction']],basic_count=(3 if jid==new_juz else 3))
-                    selected_with_parts.extend((item,jid) for item in picked)
+                    needed=4 if jid==new_juz else 3; ulo,uhi=juz_bounds[jid]
+                    picked=select_questions(ulo,uhi,needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+jid,route_seen,route_usage[route['direction']],basic_count=3)
+                    selected_with_parts.extend((item,jid,None) for item in picked)
             else:
-                picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']],foundation=foundation,verse_lo=verse_lo,verse_hi=verse_hi)
-                selected_with_parts=[(item,test['test']) for item in picked]
+                picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']],verse_lo=verse_lo,verse_hi=verse_hi)
+                selected_with_parts=[(item,test['test'],None) for item in picked]
             preview=[]
-            for qi,((start,end,key,kind),part_id) in enumerate(selected_with_parts,1):
-                part_name=(display_name if foundation else (unit_by_id[part_id][1] if route['direction']=='from_nas' and part_id in unit_by_id else (f'الجزء {part_id:02d}' if route['direction']=='from_fatiha' else route['path'])))
+            for qi,((start,end,key,kind),part_id,explicit_part_name) in enumerate(selected_with_parts,1):
+                part_name=explicit_part_name or (unit_by_id[part_id][1] if route['direction']=='from_nas' and part_id in unit_by_id else (f'الجزء {part_id:02d}' if route['direction']=='from_fatiha' else route['path']))
                 preview.append({'uid':f'route-{route["route_number"]:02d}-test-{test["test"]:03d}-model-{model_no:02d}-q-{qi:02d}-{key}','surah':start['surah'],'ayah':start['ayah'],'page':start['page'],'end_surah':end['surah'],'end_ayah':end['ayah'],'end_page':end['page'],'text':qtext(start,end),'kind':kind,'question_no':qi,'part_id':part_id,'part_name':part_name})
             models.append({'id':f'route-{route["route_number"]:02d}-test-{test["test"]:03d}-model-{model_no:02d}','name':f'{display_name} — نموذج {model_no:02d}','direction':route['direction'],'direction_name':route['direction_name'],'category_name':route['category_name'],'path_name':route['path'],'route_number':route['route_number'],'test_number':test['test'],'range_name':display_name,'model_in_range':model_no,'questions':len(preview),'basic':sum(q['kind']=='أساسي' for q in preview),'reserve':sum(q['kind']=='احتياطي' for q in preview),'preview':preview})
         file_name=f'test-{test["test"]:03d}.json'; (route_dir/file_name).write_text(json.dumps(models,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
-        index.append({'route_number':route['route_number'],'test_number':test['test'],'file':f'/route-files/route-{route["route_number"]:02d}.json','name':route['path'],'models':25,'questions':total,'page_range':[lo,hi]})
+        index.append({'route_number':route['route_number'],'test_number':test['test'],'file':f'/route-files/route-{route["route_number"]:02d}.json','name':display_name,'models':25,'questions':total,'page_range':[lo,hi]})
+        if current_segment:
+            previous_category4_segments.append(current_segment)
     print(f'route {route["route_number"]:02d}: {route["test_count"]} tests')
 (CATALOG and (ROOT/'public'/'route-models-index.json').write_text(json.dumps({'summary':CATALOG['summary'],'tests':index},ensure_ascii=False,indent=2),encoding='utf-8'))
 print(json.dumps({'routes':len(CATALOG['routes']),'tests':len(index),'models':global_model},ensure_ascii=False))
