@@ -331,7 +331,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 index=[]; global_model=0
 route_usage={'from_fatiha':Counter(),'from_nas':Counter()}
 def source_detail_name(test):
-    raw=(test.get('raw') or '').translate(AR).replace('إىل','إلى').replace('االنفطار','الانفطار').replace('التحر يم','التحريم').replace('مر يم','مريم').replace('األنبياء','الأنبياء').replace('المرسالت','المرسلات').replace('المطففني','المطففين').replace('الألحقاف','الأحقاف').replace('الألحزاب','الأحزاب').replace('الألنفال','الأنفال').replace('الألنبياء','الأنبياء').replace('الألنعام','الأنعام').replace('الألعراف','الأعراف').replace('ااإلرساء','الإسراء').replace('اإلرساء','الإسراء')
+    raw=(test.get('raw') or '').translate(AR).replace('إىل','إلى').replace('االنفطار','الانفطار').replace('التحر يم','التحريم').replace('مر يم','مريم').replace('الحرش','الحشر').replace('األنبياء','الأنبياء').replace('المرسالت','المرسلات').replace('المطففني','المطففين').replace('الألحقاف','الأحقاف').replace('الألحزاب','الأحزاب').replace('الألنفال','الأنفال').replace('الألنبياء','الأنبياء').replace('الألنعام','الأنعام').replace('الألعراف','الأعراف').replace('ااإلرساء','الإسراء').replace('اإلرساء','الإسراء')
     m=re.search(r'-\s*\d+\s*(من\s+.+?)(?=\s+\d+\s*$)',raw)
     if not m: return ''
     name=m.group(1)
@@ -384,6 +384,7 @@ for route in CATALOG['routes']:
             # اسم الاختبار في الفئة الرابعة/التأسيس تراكمي إلى الناس،
             # ويُبنى من نهاية الشريحة الجديدة كما في المصدر.
             right_name=re.sub(r'\s+',' ',dright).strip()
+            right_name=re.sub(r'\s+آية\s+\d+\s*$', '', right_name).strip()
             display_name=f'من {right_name} إلى الناس'
             exact_lo,exact_hi=detail_bounds
         else:
@@ -400,8 +401,7 @@ for route in CATALOG['routes']:
         for model_no in range(1,26):
             global_model+=1; selected_with_parts=[]; route_seen=set()
             if is_cumulative:
-                segments=[]
-                if old_segment: segments.append((old_segment,False))
+                segments=[((x[0],x[1],x[2]),False) for x in previous_category4_segments]
                 if current_segment: segments.append((current_segment,True))
                 for seg_i,(seg,is_new) in enumerate(segments,1):
                     seg_lo,seg_hi,seg_name=seg
