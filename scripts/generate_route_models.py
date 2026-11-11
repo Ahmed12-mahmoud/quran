@@ -50,7 +50,7 @@ def row_count(raw):
     return 4
 
 def parse_endpoint(text, default_last=False):
-    text=(text or '').strip()
+    text=(text or '').strip().replace('الألنبياء','الأنبياء').replace('الألحقاف','الأحقاف').replace('الألعراف','الأعراف').replace('الألنعام','الأنعام').replace('الألحزاب','الأحزاب').replace('الألنفال','الأنفال')
     for sid in sorted(range(1,115), key=lambda s:len(SURAH_NAMES[s-1]), reverse=True):
         name=SURAH_NAMES[sid-1]
         if text.startswith(name):
@@ -295,6 +295,7 @@ for uid,name,st,en,new_count,old_count in CUSTOM_UNITS:
     pages=[v['page'] for v in verses if (v['surah'],v['ayah'])>=(st[0],st[1]) and (v['surah'],v['ayah'])<=(en[0],en[1]) and v['page']]
     unit_bounds[uid]=(min(pages),max(pages))
 unit_by_id={u[0]:u for u in CUSTOM_UNITS}
+unit_verse_bounds={u[0]:(verse_index[(u[2][0],u[2][1])],verse_index[(u[3][0],u[3][1])]) for u in CUSTOM_UNITS}
 JUZ_STARTS=[(1,1),(2,142),(2,253),(3,93),(4,24),(4,148),(5,82),(6,111),(7,88),(8,41),(9,93),(11,6),(12,53),(15,1),(17,1),(18,75),(21,1),(23,1),(25,21),(27,56),(29,46),(33,31),(36,28),(39,32),(41,47),(46,1),(51,31),(58,1),(67,1),(78,1)]
 juz_bounds={}
 for jid,st in enumerate(JUZ_STARTS,1):
@@ -348,12 +349,13 @@ for route in CATALOG['routes']:
     route_seen=set()
     is_foundation = route['route_number'] == 46
     is_category4 = route['category_name'] == 'الفئة الرابعة'
+    enforce_named_range = route['category_name'] in ('الفئة الثانية','الفئة الثالثة')
     is_cumulative = is_category4 or is_foundation
     previous_category4_segments=[]
     for test in route['tests']:
         lo,hi=row_bounds(test['raw']); source_total=row_count(test['raw'])
         foundation = is_foundation
-        exact_lo,exact_hi=named_verse_bounds(test.get('name')) if (route['route_number']>=42 or route['direction']=='from_fatiha') else (None,None)
+        exact_lo,exact_hi=named_verse_bounds(test.get('name')) if (route['route_number']>=42 or route['direction']=='from_fatiha' or enforce_named_range) else (None,None)
         verse_lo,verse_hi=(exact_lo,exact_hi) if route['route_number']>=42 or route['direction']=='from_fatiha' else (None,None)
         exact_pages=[]
         if exact_lo and exact_hi:
@@ -424,7 +426,10 @@ for route in CATALOG['routes']:
             elif lower_units:
                 for uid in sorted(lower_units,key=lambda x:unit_bounds[x][0]):
                     u=unit_by_id[uid]; needed=u[4] if uid==new_unit else u[5]; ulo,uhi=unit_bounds[uid]
-                    picked=select_questions(ulo,uhi,needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+uid,route_seen,route_usage[route['direction']],basic_count=(u[4]-1 if uid==new_unit else u[5]))
+                    if enforce_named_range and exact_lo is not None and exact_hi is not None:
+                        uvl,uvh=unit_verse_bounds[uid]
+                        if uvh < exact_lo or uvl > exact_hi: continue
+                    picked=select_questions(ulo,uhi,needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+uid,route_seen,route_usage[route['direction']],basic_count=(u[4]-1 if uid==new_unit else u[5]),foundation=enforce_named_range,verse_lo=(exact_lo if enforce_named_range else None),verse_hi=(exact_hi if enforce_named_range else None))
                     selected_with_parts.extend((item,uid,None) for item in picked)
             elif upper_juz:
                 for jid in sorted(upper_juz):
