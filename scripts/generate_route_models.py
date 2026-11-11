@@ -376,7 +376,7 @@ for route in CATALOG['routes']:
             elif test['test']==len(route['tests']):
                 lower_units=list(range(1,28))
         upper_juz=upper_juz_to_page(hi) if route['direction']=='from_fatiha' else []
-        new_unit=(2 if 1 in lower_units and 2 in lower_units else min(lower_units,key=lambda uid:unit_bounds[uid][0])) if lower_units else None
+        new_unit=(2 if 1 in lower_units and 2 in lower_units else max(lower_units,key=lambda uid:unit_bounds[uid][0])) if lower_units else None
         new_juz=max(upper_juz) if upper_juz else None
         active_parts=lower_units or upper_juz
         detail_name=source_detail_name(test) or test.get('name') or ''
@@ -386,7 +386,6 @@ for route in CATALOG['routes']:
             # اسم الاختبار في الفئة الرابعة/التأسيس تراكمي إلى الناس،
             # ويُبنى من نهاية الشريحة الجديدة كما في المصدر.
             right_name=re.sub(r'\s+',' ',dright).strip()
-            right_name=re.sub(r'\s+آية\s+\d+\s*$', '', right_name).strip()
             display_name=f'من {right_name} إلى الناس'
             exact_lo,exact_hi=detail_bounds
         else:
@@ -424,7 +423,7 @@ for route in CATALOG['routes']:
                 picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']],basic_count=(total-1 if total>=3 else total),foundation=True,verse_lo=verse_lo,verse_hi=verse_hi)
                 selected_with_parts=[(item,test['test'],display_name) for item in picked]
             elif lower_units:
-                for uid in sorted(lower_units,key=lambda x:unit_bounds[x][0]):
+                for uid in sorted(lower_units,key=lambda x:unit_bounds[x][0],reverse=True):
                     u=unit_by_id[uid]; needed=u[4] if uid==new_unit else u[5]; ulo,uhi=unit_bounds[uid]
                     if enforce_named_range and exact_lo is not None and exact_hi is not None:
                         uvl,uvh=unit_verse_bounds[uid]
