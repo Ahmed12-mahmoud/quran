@@ -1,13 +1,300 @@
 {
-  "routes": 46,
-  "tests": 1263,
-  "models": 31575,
-  "questions": 1519075,
-  "route_files": 46,
-  "starts_at_ayah_1_or_2": 0,
-  "fatiha_questions": 0,
-  "duplicate_starts_inside_model": 0,
-  "minimum_page_span": 0,
-  "unique_start_positions": 5986,
-  "status": "pass"
+  "status": "passed",
+  "summary": {
+    "routes": 46,
+    "expected_tests": 1263,
+    "actual_tests": 1263,
+    "expected_models": 31575,
+    "actual_models": 31575,
+    "models_per_test": 25,
+    "errors": 0,
+    "warnings": 0
+  },
+  "route_stats": [
+    {
+      "route": 1,
+      "expected_tests": 10,
+      "actual_test_files": 10,
+      "models": 250
+    },
+    {
+      "route": 2,
+      "expected_tests": 10,
+      "actual_test_files": 10,
+      "models": 250
+    },
+    {
+      "route": 3,
+      "expected_tests": 10,
+      "actual_test_files": 10,
+      "models": 250
+    },
+    {
+      "route": 4,
+      "expected_tests": 10,
+      "actual_test_files": 10,
+      "models": 250
+    },
+    {
+      "route": 5,
+      "expected_tests": 10,
+      "actual_test_files": 10,
+      "models": 250
+    },
+    {
+      "route": 6,
+      "expected_tests": 10,
+      "actual_test_files": 10,
+      "models": 250
+    },
+    {
+      "route": 7,
+      "expected_tests": 15,
+      "actual_test_files": 15,
+      "models": 375
+    },
+    {
+      "route": 8,
+      "expected_tests": 15,
+      "actual_test_files": 15,
+      "models": 375
+    },
+    {
+      "route": 9,
+      "expected_tests": 15,
+      "actual_test_files": 15,
+      "models": 375
+    },
+    {
+      "route": 10,
+      "expected_tests": 15,
+      "actual_test_files": 15,
+      "models": 375
+    },
+    {
+      "route": 11,
+      "expected_tests": 15,
+      "actual_test_files": 15,
+      "models": 375
+    },
+    {
+      "route": 12,
+      "expected_tests": 15,
+      "actual_test_files": 15,
+      "models": 375
+    },
+    {
+      "route": 13,
+      "expected_tests": 30,
+      "actual_test_files": 30,
+      "models": 750
+    },
+    {
+      "route": 14,
+      "expected_tests": 30,
+      "actual_test_files": 30,
+      "models": 750
+    },
+    {
+      "route": 15,
+      "expected_tests": 30,
+      "actual_test_files": 30,
+      "models": 750
+    },
+    {
+      "route": 16,
+      "expected_tests": 30,
+      "actual_test_files": 30,
+      "models": 750
+    },
+    {
+      "route": 17,
+      "expected_tests": 30,
+      "actual_test_files": 30,
+      "models": 750
+    },
+    {
+      "route": 18,
+      "expected_tests": 30,
+      "actual_test_files": 30,
+      "models": 750
+    },
+    {
+      "route": 19,
+      "expected_tests": 60,
+      "actual_test_files": 60,
+      "models": 1500
+    },
+    {
+      "route": 20,
+      "expected_tests": 60,
+      "actual_test_files": 60,
+      "models": 1500
+    },
+    {
+      "route": 21,
+      "expected_tests": 60,
+      "actual_test_files": 60,
+      "models": 1500
+    },
+    {
+      "route": 22,
+      "expected_tests": 60,
+      "actual_test_files": 60,
+      "models": 1500
+    },
+    {
+      "route": 23,
+      "expected_tests": 60,
+      "actual_test_files": 60,
+      "models": 1500
+    },
+    {
+      "route": 24,
+      "expected_tests": 10,
+      "actual_test_files": 10,
+      "models": 250
+    },
+    {
+      "route": 25,
+      "expected_tests": 10,
+      "actual_test_files": 10,
+      "models": 250
+    },
+    {
+      "route": 26,
+      "expected_tests": 10,
+      "actual_test_files": 10,
+      "models": 250
+    },
+    {
+      "route": 27,
+      "expected_tests": 10,
+      "actual_test_files": 10,
+      "models": 250
+    },
+    {
+      "route": 28,
+      "expected_tests": 10,
+      "actual_test_files": 10,
+      "models": 250
+    },
+    {
+      "route": 29,
+      "expected_tests": 10,
+      "actual_test_files": 10,
+      "models": 250
+    },
+    {
+      "route": 30,
+      "expected_tests": 15,
+      "actual_test_files": 15,
+      "models": 375
+    },
+    {
+      "route": 31,
+      "expected_tests": 15,
+      "actual_test_files": 15,
+      "models": 375
+    },
+    {
+      "route": 32,
+      "expected_tests": 15,
+      "actual_test_files": 15,
+      "models": 375
+    },
+    {
+      "route": 33,
+      "expected_tests": 15,
+      "actual_test_files": 15,
+      "models": 375
+    },
+    {
+      "route": 34,
+      "expected_tests": 15,
+      "actual_test_files": 15,
+      "models": 375
+    },
+    {
+      "route": 35,
+      "expected_tests": 15,
+      "actual_test_files": 15,
+      "models": 375
+    },
+    {
+      "route": 36,
+      "expected_tests": 27,
+      "actual_test_files": 27,
+      "models": 675
+    },
+    {
+      "route": 37,
+      "expected_tests": 29,
+      "actual_test_files": 29,
+      "models": 725
+    },
+    {
+      "route": 38,
+      "expected_tests": 29,
+      "actual_test_files": 29,
+      "models": 725
+    },
+    {
+      "route": 39,
+      "expected_tests": 29,
+      "actual_test_files": 29,
+      "models": 725
+    },
+    {
+      "route": 40,
+      "expected_tests": 29,
+      "actual_test_files": 29,
+      "models": 725
+    },
+    {
+      "route": 41,
+      "expected_tests": 29,
+      "actual_test_files": 29,
+      "models": 725
+    },
+    {
+      "route": 42,
+      "expected_tests": 57,
+      "actual_test_files": 57,
+      "models": 1425
+    },
+    {
+      "route": 43,
+      "expected_tests": 57,
+      "actual_test_files": 57,
+      "models": 1425
+    },
+    {
+      "route": 44,
+      "expected_tests": 57,
+      "actual_test_files": 57,
+      "models": 1425
+    },
+    {
+      "route": 45,
+      "expected_tests": 57,
+      "actual_test_files": 57,
+      "models": 1425
+    },
+    {
+      "route": 46,
+      "expected_tests": 83,
+      "actual_test_files": 83,
+      "models": 2075
+    }
+  ],
+  "checks": {
+    "no_start_ayah_1_or_2": true,
+    "no_single_ayah_questions": true,
+    "minimum_start_page_gap": 3,
+    "chronological_order": "ascending page as presented in each model",
+    "route_46_manifest_chunks": 9
+  },
+  "errors": [],
+  "warnings": []
 }
