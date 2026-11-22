@@ -66,6 +66,15 @@ def named_verse_bounds(name):
     ia=verse_index.get(a); ib=verse_index.get(b)
     return (min(ia,ib),max(ia,ib)) if ia is not None and ib is not None else (None,None)
 
+def named_verse_bounds_from_nas(name):
+    """حدود الاتجاه السفلي: اسم السورة اليمنى يعني بدايتها ما لم تُذكر آية."""
+    if not name or ' إلى ' not in name: return (None,None)
+    left,right=name[3:].split(' إلى ',1)
+    a=parse_endpoint(left,False); b=parse_endpoint(right,False)
+    if not a or not b: return (None,None)
+    ia=verse_index.get(a); ib=verse_index.get(b)
+    return (min(ia,ib),max(ia,ib)) if ia is not None and ib is not None else (None,None)
+
 def eligible(a,lo,hi,verse_lo=None,verse_hi=None):
     exact = verse_lo is None or verse_lo <= verse_index[(a['surah'],a['ayah'])] <= verse_hi
     return exact and lo<=a['page']<=hi and a['surah']!=1 and a['ayah']>2 and a['page']<last_page-1
@@ -388,7 +397,7 @@ for route in CATALOG['routes']:
             continue
         lo,hi=row_bounds(test['raw']); source_total=row_count(test['raw'])
         foundation = is_foundation
-        exact_lo,exact_hi=named_verse_bounds(test.get('name')) if (route['route_number']>=42 or route['direction']=='from_fatiha' or enforce_named_range) else (None,None)
+        exact_lo,exact_hi=(named_verse_bounds_from_nas(test.get('name')) if route['direction']=='from_nas' and enforce_named_range else named_verse_bounds(test.get('name'))) if (route['route_number']>=42 or route['direction']=='from_fatiha' or enforce_named_range) else (None,None)
         verse_lo,verse_hi=(exact_lo,exact_hi) if route['route_number']>=42 or route['direction']=='from_fatiha' or enforce_named_range else (None,None)
         exact_pages=[]
         if exact_lo and exact_hi:
@@ -439,6 +448,8 @@ for route in CATALOG['routes']:
             if is_cumulative:
                 segments=[((x[0],x[1],x[2]),False) for x in previous_category4_segments]
                 if current_segment: segments.append((current_segment,True))
+                if route['direction']=='from_nas':
+                    segments.reverse()
                 for seg_i,(seg,is_new) in enumerate(segments,1):
                     seg_lo,seg_hi,seg_name=seg
                     seg_pages=sorted({v['page'] for v in verses if eligible(v,1,last_page,seg_lo,seg_hi)})
@@ -459,8 +470,8 @@ for route in CATALOG['routes']:
                 selected_with_parts=[(item,test['test'],display_name) for item in picked]
             elif lower_units:
                 ordered_units=sorted((uid for uid in lower_units if uid not in (1,2)),reverse=True)
-                if 1 in lower_units: ordered_units.append(1)
                 if 2 in lower_units: ordered_units.append(2)
+                if 1 in lower_units: ordered_units.append(1)
                 for uid in ordered_units:
                     u=unit_by_id[uid]; needed=u[4] if uid==new_unit else u[5]; ulo,uhi=unit_bounds[uid]
                     if enforce_named_range and exact_lo is not None and exact_hi is not None:
@@ -481,12 +492,33 @@ for route in CATALOG['routes']:
             else:
                 picked=select_questions(lo,hi,total,20261106+route['route_number']*100000+test['test']*100+model_no,route_seen,route_usage[route['direction']],verse_lo=verse_lo,verse_hi=verse_hi)
                 selected_with_parts=[(item,test['test'],None) for item in picked]
-            selected_with_parts.sort(key=lambda x:(x[0][0]['page'],x[0][0]['surah'],x[0][0]['ayah']))
-            spaced=[]; last_start_page=None
+            # في الاتجاه من الناس إلى الفاتحة نعكس ترتيب الأجزاء فقط:
+            # ترتيب الأسئلة داخل كل جزء يبقى كما اختارته select_questions.
+            # لا نعيد الفرز بالصفحة هنا لأنه كان يعيد الأجزاء إلى ترتيب المصحف
+            # ويُسقط أحيانًا بداية الفاتحة/البقرة بعد تطبيق شرط التباعد.
+            if route['direction']!='from_nas':
+                selected_with_parts.sort(key=lambda x:(x[0][0]['page'],x[0][0]['surah'],x[0][0]['ayah']))
+            # التباعد يُطبَّق داخل الجزء نفسه فقط. في الاتجاه من الناس إلى
+            # الفاتحة تتناقص صفحات الأجزاء عمدًا، لذلك فإن تطبيقه على القائمة
+            # كلها كان يُسقط كل الأجزاء السابقة لأول جزء ويُخفي الفاتحة/البقرة.
+            # نحافظ على ترتيب الأجزاء، ونرتب الأسئلة داخل كل جزء تصاعديًا.
+            grouped_parts=[]
+            part_groups={}
             for item in selected_with_parts:
-                page=item[0][0]['page']
-                if last_start_page is None or page-last_start_page >= 3:
-                    spaced.append(item); last_start_page=page
+                part_id=item[1]
+                if part_id not in part_groups:
+                    part_groups[part_id]=[]
+                    grouped_parts.append(part_id)
+                part_groups[part_id].append(item)
+            spaced=[]
+            for part_id in grouped_parts:
+                group=sorted(part_groups[part_id], key=lambda x:(x[0][0]['page'],x[0][0]['surah'],x[0][0]['ayah']))
+                last_start_page=None
+                for item in group:
+                    page=item[0][0]['page']
+                    if last_start_page is None or page-last_start_page >= 3:
+                        spaced.append(item)
+                        last_start_page=page
             selected_with_parts=spaced
             preview=[]
             for qi,((start,end,key,kind),part_id,explicit_part_name) in enumerate(selected_with_parts,1):
