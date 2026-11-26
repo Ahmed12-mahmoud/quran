@@ -14,11 +14,11 @@ def nums(s): return [int(x) for x in re.findall(r'\d+', s.translate(AR))]
 def normalize(s): return re.sub(r'[\u064B-\u065F\u0670\u06D6-\u06ED\s\u200f\u200e]', '', s)
 def excerpt(s, limit=10):
     w=s.split(); return s if len(w)<=limit else ' '.join(w[:limit])+' …'
-def excerpt_end(s, limit=10):
+def excerpt_end(s, limit=4):
     w=s.split()
-    if len(w)<=12: return s
-    return '… '+' '.join(w[-min(14,len(w)):])
-def qtext(a,b): return f'من قوله تعالى: «{excerpt(a["text"])}» إلى ختام الآية: «{excerpt_end(b["text"])}»'
+    if len(w)<=limit: return s
+    return '… '+' '.join(w[-limit:])
+def qtext(a,b): return f'من قوله تعالى: «{excerpt(a["text"])}» إلى قوله تعالى: «{excerpt_end(b["text"])}»'
 
 verses=[]
 for chapter in QURAN:
@@ -84,8 +84,7 @@ def choose_question(pool, page, used_pages, seen_starts, usage, rng, lo, hi):
     if not candidates: candidates=[v for v in pool if eligible(v,lo,hi) and normalize(v['text']) not in seen_starts and all(abs(v['page']-p)>=3 for p in used_pages)]
     rng.shuffle(candidates)
     for start in candidates:
-        ends=[v for v in pool if v['page']>=start['page']+2 and v['page']<=min(hi,start['page']+2) and v['surah']!=1 and v['ayah']>1]
-        if not ends: ends=[v for v in pool if v['page']<=hi and v['page']>=start['page'] and v['surah']!=1 and v['ayah']>1]
+        ends=[v for v in bounded_end_candidates(pool,start,minimum_page_gap=1) if v['page']<=hi and v['surah']!=1 and v['ayah']>1]
         rng.shuffle(ends)
         for end in ends:
             key=f'{start["surah"]}:{start["ayah"]}-{end["surah"]}:{end["ayah"]}'
@@ -100,6 +99,14 @@ def later_end_candidates(pool,start,minimum_page_gap=2):
     later=[v for v in pool if verse_index[(v['surah'],v['ayah'])]>start_i and v['page']>=start['page']+1 and v['ayah']>1]
     if later: return later
     return [v for v in pool if verse_index[(v['surah'],v['ayah'])]>start_i]
+
+def bounded_end_candidates(pool,start,minimum_page_gap=2):
+    """اختر نهاية داخل الوجه نفسه أو الوجه التالي، ولا تتجاوز وجهين."""
+    candidates=later_end_candidates(pool,start,minimum_page_gap)
+    bounded=[v for v in candidates if v['page']<=start['page']+1]
+    if bounded: return bounded
+    same_page=[v for v in pool if verse_index[(v['surah'],v['ayah'])]>verse_index[(start['surah'],start['ayah'])] and v['page']==start['page']]
+    return same_page
 def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundation=False,verse_lo=None,verse_hi=None):
     pool=[v for v in verses if eligible(v,lo,hi,verse_lo,verse_hi)]
     # لا نخفف قيد استبعاد أول آيتين؛ إذا ضاق النطاق نخفض العدد الفعلي
@@ -116,7 +123,7 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
     if not pool: raise RuntimeError(f'empty range {lo}-{hi}')
     # لا نبدأ سؤالًا من آخر آية متاحة؛ يجب أن يحتوي كل سؤال على آية لاحقة
     # على الأقل، وإلا نخفض العدد الفعلي بدل إنشاء سؤال من آية واحدة.
-    valid_starts=[v for v in pool if later_end_candidates(pool,v,minimum_page_gap=1)]
+    valid_starts=[v for v in pool if bounded_end_candidates(pool,v,minimum_page_gap=1)]
     if valid_starts:
         pool=valid_starts
         total=min(total,len(pool))
@@ -142,7 +149,7 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
             chosen=[]
             for pos in range(total):
                 start=ordered[pos % len(ordered)]
-                later=later_end_candidates(ordered,start,minimum_page_gap=1)
+                later=bounded_end_candidates(ordered,start,minimum_page_gap=1)
                 if not later: continue
                 end=later[min(len(later)-1,pos+1)]
                 key=f'{start["surah"]}:{start["ayah"]}-{end["surah"]}:{end["ayah"]}'
@@ -152,7 +159,7 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
             return chosen
         boundaries=[pages[0]+(span*i)//total for i in range(total+1)]
         boundaries[-1]=pages[-1]+1
-        for attempt in range(300):
+        for attempt in range(20):
             chosen=[]; used=[]; local=set()
             for bi in range(total):
                 left,right=boundaries[bi],boundaries[bi+1]
@@ -162,7 +169,7 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
                 if not picked:
                     picked=next((v for v in band if normalize(v['text']) not in local),None)
                 if not picked: break
-                ends=[v for v in later_end_candidates(pool,picked,minimum_page_gap=2) if v['page']<=hi]
+                ends=[v for v in bounded_end_candidates(pool,picked,minimum_page_gap=2) if v['page']<=hi]
                 if not ends: break
                 rng.shuffle(ends)
                 end=ends[0]
@@ -185,15 +192,32 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
             if not picked:
                 picked=next((v for v in candidates if normalize(v['text']) not in local),None)
             if not picked: break
-            ends=[v for v in pool if v['page']>=picked['page']+2 and v['page']<=hi and v['ayah']>1]
-            ends=ends or [v for v in pool if v['page']>=picked['page'] and v['ayah']>1]
-            end=ends[0] if ends else picked
+            ends=[v for v in bounded_end_candidates(pool,picked,minimum_page_gap=1) if v['page']<=hi and v['ayah']>1]
+            if not ends: continue
+            end=ends[0]
             key=f'{picked["surah"]}:{picked["ayah"]}-{end["surah"]}:{end["ayah"]}'
             chosen.append((picked,end,key,'احتياطي' if pos==reserve_at else 'أساسي')); used_pages.append(picked['page']); local.add(normalize(picked['text']))
         if len(chosen)==total:
             for _,_,key,_ in chosen: usage[key]+=1
             for st,_,_,_ in chosen: route_seen.add(normalize(st['text']))
             return chosen
+        # تراجع نهائي للنطاقات الضيقة: نخفف تباعد البدايات فقط، ولا نخفف
+        # شرط النهاية؛ كل سؤال يظل داخل الوجه نفسه أو الوجه التالي.
+        compact=[]; used_starts=set()
+        for st in sorted(pool,key=lambda v:(v['page'],v['surah'],v['ayah'])):
+            norm=normalize(st['text'])
+            if norm in used_starts: continue
+            ends=bounded_end_candidates(pool,st,minimum_page_gap=1)
+            if not ends: continue
+            end=ends[0]
+            key=f'{st["surah"]}:{st["ayah"]}-{end["surah"]}:{end["ayah"]}'
+            compact.append((st,end,key,'احتياطي' if len(compact)==reserve_at else 'أساسي'))
+            used_starts.add(norm)
+            if len(compact)==total: break
+        if len(compact)==total:
+            for _,_,key,_ in compact: usage[key]+=1
+            for st,_,_,_ in compact: route_seen.add(normalize(st['text']))
+            return compact
         raise RuntimeError(f'cannot distribute foundation questions for pages {lo}-{hi}')
     basic=(max(1,total-1) if total>=4 else total) if basic_count is None else basic_count
     bands=4 if basic>=4 else 3
@@ -208,7 +232,7 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
         boundaries=[pages[0]+(span*i)//4 for i in range(5)]
         boundaries[-1]=pages[-1]+1
     rng=random.Random(seed)
-    for attempt in range(300):
+    for attempt in range(20):
         starts=[]; used=[]; local=set()
         for bi in range(bands):
             left,right=boundaries[bi],boundaries[bi+1]
@@ -231,11 +255,11 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
         if len(starts)<basic: continue
         chosen=[]
         for st in starts:
-            ends=[v for v in later_end_candidates(pool,st,minimum_page_gap=2) if v['page']<=hi]
+            ends=[v for v in bounded_end_candidates(pool,st,minimum_page_gap=2) if v['page']<=hi]
             rng.shuffle(ends)
-            if not ends: ends=[v for v in pool if v['page']>=st['page']+2 and v['page']<=hi]
+            if not ends: ends=[v for v in bounded_end_candidates(pool,st,minimum_page_gap=1) if v['page']<=hi]
             if not ends:
-                ends=[v for v in later_end_candidates(pool,st,minimum_page_gap=1) if v['page']<=hi]
+                ends=[v for v in bounded_end_candidates(pool,st,minimum_page_gap=1) if v['page']<=hi]
             if not ends: continue
             end=next((e for e in ends if usage[f'{st["surah"]}:{st["ayah"]}-{e["surah"]}:{e["ayah"]}']<12),ends[0])
             key=f'{st["surah"]}:{st["ayah"]}-{end["surah"]}:{end["ayah"]}'
@@ -249,9 +273,9 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
             if not middle: break
             picked=None
             for st in middle:
-                ends=[v for v in later_end_candidates(pool,st,minimum_page_gap=2) if v['page']<=hi]
+                ends=[v for v in bounded_end_candidates(pool,st,minimum_page_gap=2) if v['page']<=hi]
                 if not ends:
-                    ends=[v for v in later_end_candidates(pool,st,minimum_page_gap=1) if v['page']<=hi]
+                    ends=[v for v in bounded_end_candidates(pool,st,minimum_page_gap=1) if v['page']<=hi]
                 if not ends: continue
                 for end in ends:
                     key=f'{st["surah"]}:{st["ayah"]}-{end["surah"]}:{end["ayah"]}'
@@ -272,7 +296,7 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
     for start in sorted(pool, key=lambda v:(v['page'],v['surah'],v['ayah'])):
         key_start=normalize(start['text'])
         if key_start in local or any(abs(start['page']-p)<3 for p in used_pages): continue
-        ends=later_end_candidates(pool,start,minimum_page_gap=2)
+        ends=bounded_end_candidates(pool,start,minimum_page_gap=2)
         if not ends: continue
         end=ends[min(len(ends)-1, 2)]
         key=f'{start["surah"]}:{start["ayah"]}-{end["surah"]}:{end["ayah"]}'
@@ -288,7 +312,7 @@ def select_questions(lo,hi,total,seed,route_seen,usage,basic_count=None,foundati
         for st in ordered:
             norm=normalize(st['text'])
             if norm in local or any(abs(st['page']-pg)<min_gap for pg in used_pages): continue
-            ends=later_end_candidates(pool,st,minimum_page_gap=2)
+            ends=bounded_end_candidates(pool,st,minimum_page_gap=2)
             if not ends: continue
             end=ends[0]
             key=f'{st["surah"]}:{st["ayah"]}-{end["surah"]}:{end["ayah"]}'
@@ -416,7 +440,7 @@ for route in CATALOG['routes']:
             lower_units=list(range(1,28))
         if route['direction']=='from_nas' and route['route_number'] in range(36,42):
             if test['test']==len(route['tests'])-1:
-                lower_units=[1]+list(range(3,28))
+                lower_units=[1,2]+list(range(3,28))
             elif test['test']==len(route['tests']):
                 lower_units=list(range(1,28))
         upper_juz=upper_juz_to_page(hi) if route['direction']=='from_fatiha' else []
@@ -537,5 +561,6 @@ if os.environ.get('DIRECT_ROUTE_FILES'):
         route_dir=OUT/f'route-{rn:02d}'; merged=[]
         for fp in sorted(route_dir.glob('test-*.json')): merged.extend(json.loads(fp.read_text(encoding='utf-8')))
         (final_dir/f'route-{rn:02d}.json').write_text(json.dumps(merged,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
-(CATALOG and (ROOT/'public'/'route-models-index.json').write_text(json.dumps({'summary':CATALOG['summary'],'tests':index},ensure_ascii=False,indent=2),encoding='utf-8'))
+if not selected_routes:
+    (ROOT/'public'/'route-models-index.json').write_text(json.dumps({'summary':CATALOG['summary'],'tests':index},ensure_ascii=False,indent=2),encoding='utf-8')
 print(json.dumps({'routes':len(CATALOG['routes']),'tests':len(index),'models':global_model},ensure_ascii=False))

@@ -98,7 +98,7 @@ function App(){
     const title=(text,size=30,color='164A3B')=>new Paragraph({alignment:AlignmentType.CENTER,bidirectional:true,spacing:{after:180},children:[new TextRun({text,bold:true,color,font:{name:'Traditional Arabic',eastAsia:'Traditional Arabic'},size})]});
     const coverTitle=(text,size=48)=>new Paragraph({alignment:AlignmentType.CENTER,bidirectional:true,spacing:{after:220},border:{bottom:{style:BorderStyle.SINGLE,size:8,color:'B79A55',space:7}},children:[new TextRun({text,bold:true,color:'164A3B',font:{name:'Traditional Arabic',eastAsia:'Traditional Arabic'},size})]});
     const modelNumber=englishDigits(String(model.model_in_range||model.id||'').match(/\d+$/)?.[0]?.padStart(2,'0')||'01');
-    const coverCell=(label,value,opts={})=>cell(`${label}: ${value}`,{center:true,bold:true,size:22,fill:'F7F5EF',border:'B79A55',...opts}); const coverTable=new Table({width:{size:100,type:WidthType.PERCENTAGE},columnWidths:[5100,5100],rows:[new TableRow({children:[coverCell('الاتجاه',directionTitle(model)),coverCell('الفئة',model.category_name||'')]}),new TableRow({children:[coverCell('المسار',model.path_name||''),coverCell('اسم الاختبار',modelTitle(model))]}),new TableRow({children:[coverCell('رقم النموذج',modelNumber,{font:'Arial'}),coverCell('اسم الطالب','................................................')]}),new TableRow({children:[coverCell('الدرجة','................................'),coverCell('','')]} )]}); const children=[new Paragraph({spacing:{before:1200},children:[]}),coverTitle('إتحاف الأخيار في الحفظ بالأعشار',38),coverTable,new Paragraph({pageBreakBefore:true})];
+    const coverCell=(label,value,opts={})=>cell(`${label}: ${value}`,{center:true,bold:true,size:22,fill:'F7F5EF',border:'B79A55',...opts}); const coverTable=new Table({width:{size:100,type:WidthType.PERCENTAGE},columnWidths:[5100,5100],rows:[new TableRow({children:[coverCell('الاتجاه',directionTitle(model)),coverCell('الفئة',model.category_name||'')]}),new TableRow({children:[coverCell('المسار',model.path_name||''),coverCell('اسم الاختبار',modelTitle(model))]}),new TableRow({children:[coverCell('رقم النموذج',modelNumber,{font:'Arial'}),coverCell('','')]}),new TableRow({children:[coverCell('اسم الطالب','................................................'),coverCell('الدرجة','................................')]} )]}); const children=[new Paragraph({spacing:{before:1200},children:[]}),coverTitle('إتحاف الأخيار في الحفظ بالأعشار',38),coverTable,new Paragraph({pageBreakBefore:true})];
     let questionNo=0;
     for(const partId of [...new Set(rows.map(q=>q.part_id))]){
       const jr=rows.filter(q=>q.part_id===partId); const partName=jr[0]?.part_name||`الوحدة ${partId}`;
@@ -170,14 +170,19 @@ function App(){
         const pdf=await buildPdfBlob(model); const pdfName=`${modelContext(model)}.pdf`;
         files.push(new File([pdf],pdfName,{type:'application/pdf'}));
       }
-      if(navigator.share&&navigator.canShare&&navigator.canShare({files})){
-        await navigator.share({files,title:'نماذج الاختبار المحدد',text:'اختر Google Drive لحفظ ملفات Word وPDF منفردة — بدون ZIP'});
-        showNotice(`تم إرسال ${files.length} ملفًا للاختبار المحدد إلى شاشة المشاركة؛ اختر Google Drive لحفظها منفردة`);
-        return;
+      // Web Share على الهاتف يرفض غالبًا عشرات الملفات دفعة واحدة؛ لا نرسل إلا دفعة صغيرة.
+      // إن تعذر ذلك، نعود للتنزيل المنفرد بعد اكتمال التجهيز بدل إظهار خطأ مضلل.
+      const shareBatch=files.slice(0,4);
+      if(files.length<=4&&navigator.share&&navigator.canShare&&navigator.canShare({files:shareBatch})){
+        try{
+          await navigator.share({files:shareBatch,title:'نماذج الاختبار المحدد',text:'اختر Google Drive لحفظ ملفات Word وPDF'});
+          showNotice(`تم إرسال ${shareBatch.length} ملفًا إلى شاشة المشاركة؛ اختر Google Drive`);
+          return;
+        }catch(error){if(error?.name==='AbortError')return;console.warn('share unavailable, falling back to downloads',error)}
       }
       for(const file of files){const url=URL.createObjectURL(file);const a=document.createElement('a');a.href=url;a.download=file.name;a.rel='noopener';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
-      showNotice(`تم تجهيز ${files.length} ملفًا للاختبار المحدد منفردة؛ افتح التنزيلات واختر Google Drive`);
-    }catch(error){if(error?.name==='AbortError')return;console.error(error);document.getElementById('pdf-export-root')?.remove();showNotice('تعذر تجهيز ملفات Drive؛ حاول مرة أخرى')}
+      showNotice(`تم تجهيز ${files.length} ملفًا منفردًا؛ افتح التنزيلات واختر Google Drive`);
+    }catch(error){console.error(error);document.getElementById('pdf-export-root')?.remove();showNotice('تعذر تجهيز الملفات؛ أعد المحاولة')}
   };
   const updateQuestion=(uid,text)=>{setSelected(s=>{const old=s?.preview.find(q=>q.uid===uid)?.text;if(s&&originalTexts.current[uid]===undefined)originalTexts.current[uid]=old;return s?{...s,preview:s.preview.map(q=>q.uid===uid?{...q,text}:q)}:s});setEdits(prev=>{const next={...prev,[uid]:text};localStorage.setItem(EDIT_KEY,JSON.stringify(next));return next})};
   const saveQuestionWithReason=async(uid,text)=>{if(!user){showNotice('سجّل دخول المشرف أولًا');return}const reason=window.prompt('اكتب سبب التعديل — هذا الحقل إجباري:','');if(reason===null)return;if(!reason.trim()){showNotice('يجب كتابة سبب التعديل قبل الحفظ');return}await persistQuestion(uid,text,reason.trim(),originalTexts.current[uid]);delete originalTexts.current[uid]};
