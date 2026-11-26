@@ -428,11 +428,11 @@ for route in CATALOG['routes']:
             exact_pages=sorted({v['page'] for v in verses if eligible(v,lo,hi,exact_lo,exact_hi)})
         span_pages=len(exact_pages) or max(1,hi-lo+1)
         if foundation:
-            total=4 if span_pages>15 else 3
+            total=4
         elif is_category4:
             total=source_total
         elif upper_range_mode:
-            total=4 if span_pages>15 else 3
+            total=4
         else:
             total=source_total
         lower_units=lower_units_from_start(lo) if route['direction']=='from_nas' and not foundation and not is_category4 else []
@@ -483,8 +483,8 @@ for route in CATALOG['routes']:
                     if not seg_pages:
                         raise RuntimeError(f'empty cumulative segment {seg_lo}-{seg_hi} in route {route["route_number"]} test {test["test"]}')
                     seg_span=len(seg_pages)
-                    needed=(4 if seg_span>15 else 3) if is_new else (3 if seg_span>15 else 2)
-                    basic_count=needed-1 if is_new and needed>=3 else needed
+                    needed=4 if is_new else 3
+                    basic_count=3
                     picked=select_questions(min(seg_pages),max(seg_pages),needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+seg_i,route_seen,route_usage[route['direction']],basic_count=basic_count,foundation=True,verse_lo=seg_lo,verse_hi=seg_hi)
                     if is_new and needed>=3:
                         picked=[(item[0],item[1],item[2],'احتياطي' if pi==needed//2 else 'أساسي') for pi,item in enumerate(picked)]
@@ -494,15 +494,17 @@ for route in CATALOG['routes']:
                 selected_with_parts=[(item,test['test'],display_name) for item in picked]
             elif lower_units:
                 ordered_units=sorted((uid for uid in lower_units if uid not in (1,2)),reverse=True)
-                if 2 in lower_units: ordered_units.append(2)
+                # عند اكتمال البقرة: الفاتحة إلى سيقول السفهاء أولًا،
+                # ثم سيقول السفهاء إلى نهاية البقرة باعتبارها الوحدة الجديدة.
                 if 1 in lower_units: ordered_units.append(1)
+                if 2 in lower_units: ordered_units.append(2)
                 for uid in ordered_units:
-                    u=unit_by_id[uid]; needed=u[4] if uid==new_unit else u[5]; ulo,uhi=unit_bounds[uid]
+                    u=unit_by_id[uid]; needed=4 if uid==new_unit else 3; ulo,uhi=unit_bounds[uid]
                     if enforce_named_range and exact_lo is not None and exact_hi is not None:
                         uvl,uvh=unit_verse_bounds[uid]
                         if uvh < exact_lo or uvl > exact_hi: continue
                     effective_verse_lo=(unit_verse_bounds[1][0] if uid==1 and 2 in lower_units else exact_lo)
-                    picked=select_questions(ulo,uhi,needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+uid,route_seen,route_usage[route['direction']],basic_count=(u[4]-1 if uid==new_unit else u[5]),foundation=enforce_named_range,verse_lo=(effective_verse_lo if enforce_named_range else None),verse_hi=(exact_hi if enforce_named_range else None))
+                    picked=select_questions(ulo,uhi,needed,20261106+route['route_number']*100000+test['test']*100+model_no*31+uid,route_seen,route_usage[route['direction']],basic_count=3,foundation=enforce_named_range,verse_lo=(effective_verse_lo if enforce_named_range else None),verse_hi=(exact_hi if enforce_named_range else None))
                     selected_with_parts.extend((item,uid,None) for item in picked)
             elif upper_range_mode:
                 range_lo,range_hi=(exact_lo,exact_hi) if exact_lo is not None and exact_hi is not None else (lo,hi)
